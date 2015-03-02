@@ -20,18 +20,24 @@ public class COPSClientSI extends COPSObjBase {
     public final static byte CSI_SIGNALED = 1;
     public final static byte CSI_NAMED = 2;
 
-    private COPSObjHeader _objHdr;
-    private COPSData _data;
-    private COPSData _padding;
+    private final COPSObjHeader _objHdr;
+    private transient COPSData _data;
+    private transient COPSData _padding;
 
-    ///
-    public COPSClientSI(byte type) {
-        _objHdr = new COPSObjHeader();
-        _objHdr.setCNum(COPSObjHeader.COPS_CSI);
-        _objHdr.setCType(type);
+    /**
+     * Constructor #1
+     * @param type - used to set the CType on the COPSObjHeader
+     */
+    public COPSClientSI(final byte type) {
+        this(COPSObjHeader.COPS_CSI, type);
     }
 
-    public COPSClientSI(byte cnum, byte ctype) {
+    /**
+     * Constructor #2
+     * @param ctype - used to set the CType value on the COPSObjHeader
+     * @param cnum - used to set the CNum value on the COPSObjHeader
+     */
+    public COPSClientSI(final byte cnum, final byte ctype) {
         _objHdr = new COPSObjHeader();
         _objHdr.setCNum(cnum);
         _objHdr.setCType(ctype);
@@ -40,74 +46,52 @@ public class COPSClientSI extends COPSObjBase {
     /**
      Parse the data and create a ClientSI object
      */
-    protected COPSClientSI(byte[] dataPtr) {
+    protected COPSClientSI(final byte[] dataPtr) {
         _objHdr = new COPSObjHeader();
         _objHdr.parse(dataPtr);
         // _objHdr.checkDataLength();
 
         //Get the length of data following the obj header
-        short dLen = (short) (_objHdr.getDataLength() - 4);
-        COPSData d = new COPSData(dataPtr, 4, dLen);
-        setData(d);
+        final short dLen = (short) (_objHdr.getDataLength() - 4);
+        setData(new COPSData(dataPtr, 4, dLen));
     }
 
     /**
      * Method setData
-     *
      * @param    data                a  COPSData
-     *
      */
-    public void setData(COPSData data) {
+    public void setData(final COPSData data) {
         _data = data;
         if (_data.length() % 4 != 0) {
-            int padLen = 4 - _data.length() % 4;
-            _padding = getPadding(padLen);
+            _padding = getPadding(_data.length() % 4);
         }
         _objHdr.setDataLength((short) _data.length());
     }
 
-    /**
-     * Returns size in number of octects, including header
-     *
-     * @return   a short
-     *
-     */
+    @Override
     public short getDataLength() {
         //Add the size of the header also
-        int lpadding = 0;
+        final int lpadding;
         if (_padding != null) lpadding = _padding.length();
+        else lpadding = 0;
         return (short) (_objHdr.getDataLength() + lpadding);
     }
 
     /**
      * Method getData
-     *
      * @return   a COPSData
-     *
      */
     public COPSData getData() {
         return _data;
-    };
+    }
 
-    /**
-     * Method isClientSI
-     *
-     * @return   a boolean
-     *
-     */
+    @Override
     public boolean isClientSI() {
         return true;
     }
 
-    /**
-     * Write data on a given network socket
-     *
-     * @param    id                  a  Socket
-     *
-     * @throws   IOException
-     *
-     */
-    public void writeData(Socket id) throws IOException {
+    @Override
+    public void writeData(final Socket id) throws IOException {
         _objHdr.writeData(id);
         COPSUtil.writeData(id, _data.getData(), _data.length());
         if (_padding != null) {
@@ -117,15 +101,12 @@ public class COPSClientSI extends COPSObjBase {
 
     /**
      * Write an object textual description in the output stream
-     *
      * @param    os                  an OutputStream
-     *
      * @throws   IOException
-     *
      */
-    public void dump(OutputStream os) throws IOException {
+    public void dump(final OutputStream os) throws IOException {
         _objHdr.dump(os);
-        os.write(new String("client-SI: " + _data.str() + "\n").getBytes());
+        os.write(("client-SI: " + _data.str() + "\n").getBytes());
     }
 }
 

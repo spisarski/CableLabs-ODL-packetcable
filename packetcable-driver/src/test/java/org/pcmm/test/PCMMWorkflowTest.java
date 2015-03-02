@@ -1,20 +1,17 @@
 package org.pcmm.test;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.After;
+import org.junit.Before;
 import org.pcmm.rcd.ICMTS;
 import org.pcmm.rcd.IPCMMPolicyServer;
 import org.pcmm.rcd.IPCMMPolicyServer.IPSCMTSClient;
 import org.pcmm.rcd.impl.CMTS;
 import org.pcmm.rcd.impl.PCMMPolicyServer;
+
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
+import static org.junit.Assert.*;
 
 public class PCMMWorkflowTest {
 
@@ -22,19 +19,19 @@ public class PCMMWorkflowTest {
 	 * CMTS emulator, when testing with a real CMTS this should be set to null
 	 * and shoudln't be started
 	 */
-	private static ICMTS cmts;
+	private ICMTS cmts;
 	/**
 	 * CMTS host address, when testing with a real CMTS this should be CMTS
 	 * address
 	 */
-	private static InetAddress host;
+	private InetAddress host;
 
-	private static IPCMMPolicyServer server;
-	private static IPSCMTSClient client;
-	private static boolean real_cmts = false;
+	private IPCMMPolicyServer server;
+	private IPSCMTSClient client;
+	private boolean real_cmts = false;
 
-	@BeforeClass
-	public static void setUpBeforeClass() throws Exception {
+	@Before
+	public void setUpBeforeClass() throws Exception {
 		if (real_cmts == true) {
 		     cmts = null;
 		} else {
@@ -61,19 +58,19 @@ public class PCMMWorkflowTest {
 		setupConnection();
 	}
 
-	@AfterClass
-	public static void tearDownAfterClass() throws Exception {
+	@After
+	public void tearDownAfterClass() throws Exception {
 		tearDown();
 		if (cmts != null)
 			cmts.stopServer();
 	}
 
-	public static void setupConnection() {
+	public void setupConnection() {
 		client = server.requestCMTSConnection(host);
 		assertNotNull(client);
 	}
 
-	public static void tearDown() throws Exception {
+	public void tearDown() throws Exception {
 		assertNotNull(client);
 		assertTrue("Client disconnection failed", client.disconnect());
 	}

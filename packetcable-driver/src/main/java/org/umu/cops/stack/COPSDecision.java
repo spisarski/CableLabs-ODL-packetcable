@@ -44,7 +44,7 @@ public class COPSDecision extends COPSObjBase {
       Constructor to create a Decision object. By default creates
       a decision object which is of fixed length.
      */
-    public COPSDecision(byte cType) {
+    public COPSDecision(final byte cType) {
         _objHdr = new COPSObjHeader();
         _cmdCode = 0;
         _flags = 0;
@@ -54,6 +54,7 @@ public class COPSDecision extends COPSObjBase {
     }
 
     public COPSDecision() {
+        this(null);
         _objHdr = new COPSObjHeader();
         _cmdCode = 0;
         _flags = 0;
@@ -65,7 +66,7 @@ public class COPSDecision extends COPSObjBase {
     /**
           Initialize the decision object with values from COPSObj header
      */
-    protected COPSDecision(byte[] dataPtr) {
+    protected COPSDecision(final byte[] dataPtr) {
         _objHdr = new COPSObjHeader();
         _objHdr.parse(dataPtr);
         // _objHdr.checkDataLength();
@@ -80,21 +81,19 @@ public class COPSDecision extends COPSObjBase {
 
             _objHdr.setDataLength((short) 4);
         } else {
-            int dLen = _objHdr.getDataLength() - 4;
-            COPSData d = new COPSData(dataPtr, 4, dLen);
-            setData(d);
+            final int dLen = _objHdr.getDataLength() - 4;
+            setData(new COPSData(dataPtr, 4, dLen));
         }
     }
 
     /**
      * Method getDataLength
-     *
      * @return   a short
-     *
      */
     public short getDataLength() {
-        int lpadding = 0;
+        final int lpadding;
         if (_padding != null) lpadding = _padding.length();
+        else lpadding = 0;
         return ((short) (_objHdr.getDataLength() + lpadding));
     }
 
@@ -102,9 +101,7 @@ public class COPSDecision extends COPSObjBase {
 
     /**
      * Get the associated data if decision object is of cType 2 or higher
-     *
      * @return   a COPSData
-     *
      */
     public COPSData getData() {
         return (_data);
@@ -112,11 +109,9 @@ public class COPSDecision extends COPSObjBase {
 
     /**
      * Set the decision data if decision object is of cType 2 or higher
-     *
      * @param    data                a  COPSData
-     *
      */
-    public void setData(COPSData data) {
+    public void setData(final COPSData data) {
         if (data.length() % 4 != 0) {
             int padLen = 4 - data.length() % 4;
             _padding = getPadding(padLen);
@@ -127,126 +122,103 @@ public class COPSDecision extends COPSObjBase {
 
     /**
      * Retruns true if cType = 1
-     *
      * @return   a boolean
-     *
      */
     public boolean isFlagSet() {
         return ( _objHdr.getCType() == 1);
-    };
+    }
 
     /**
      * If cType == 1 , get the flags associated
-     *
      * @return   a short
-     *
      */
     public short getFlags() {
         return (_flags);
-    };
+    }
 
     /**
      * If cType == 1 ,set the cmd code
-     *
      * @param    cCode               a  byte
-     *
      */
-    public void setCmdCode(byte cCode) {
+    public void setCmdCode(final byte cCode) {
         _cmdCode = (short) cCode;
     }
 
     /**
      * If cType == 1 ,set the cmd flags
-     *
      * @param    flags               a  short
-     *
      */
-    public void setFlags(short flags) {
+    public void setFlags(final short flags) {
         _flags = flags;
     }
 
     /**
      * Method isNullDecision
-     *
      * @return   a boolean
-     *
      */
     public boolean isNullDecision() {
         return ( _cmdCode == 0);
-    };
+    }
 
     /**
      * Method isInstallDecision
-     *
      * @return   a boolean
-     *
      */
     public boolean isInstallDecision() {
         return ( _cmdCode == 1);
-    };
+    }
 
     /**
      * Method isRemoveDecision
-     *
      * @return   a boolean
-     *
      */
     public boolean isRemoveDecision() {
         return ( _cmdCode == 2);
-    };
+    }
 
     /**
      * Method getTypeStr
-     *
      * @return   a String
-     *
      */
     public String getTypeStr() {
         switch (_objHdr.getCType()) {
-        case DEC_DEF:
-            return "Default";
-        case DEC_STATELESS:
-            return "Stateless data";
-        case DEC_REPL:
-            return "Replacement data";
-        case DEC_CSI:
-            return "Client specific decision data";
-        case DEC_NAMED:
-            return "Named decision data";
-        default:
-            return "Unknown";
+            case DEC_DEF:
+                return "Default";
+            case DEC_STATELESS:
+                return "Stateless data";
+            case DEC_REPL:
+                return "Replacement data";
+            case DEC_CSI:
+                return "Client specific decision data";
+            case DEC_NAMED:
+                return "Named decision data";
+            default:
+                return "Unknown";
         }
     }
 
     /**
      * Method isDecision
-     *
      * @return   a boolean
-     *
      */
     public boolean isDecision() {
         return true;
-    };
+    }
 
     /**
      * Method isLocalDecision
-     *
      * @return   a boolean
-     *
      */
     public boolean isLocalDecision() {
         return false;
-    };
+    }
 
     /**
      * Writes data to a given network socket
-     *
      * @param    id                  a  Socket
-     *
      * @throws   IOException
-     *
      */
-    public void writeData(Socket id) throws IOException {
+    public void writeData(final Socket id) throws IOException {
         _objHdr.writeData(id);
 
         if (_objHdr.getCType() >= 2) {
@@ -255,7 +227,7 @@ public class COPSDecision extends COPSObjBase {
                 COPSUtil.writeData(id, _padding.getData(), _padding.length());
             }
         } else {
-            byte[] buf = new byte[4];
+            final byte[] buf = new byte[4];
             buf[0] = (byte) (_cmdCode >> 8);
             buf[1] = (byte) _cmdCode;
             buf[2] = (byte) (_flags >> 8);
@@ -266,22 +238,19 @@ public class COPSDecision extends COPSObjBase {
 
     /**
      * Write an object textual description in the output stream
-     *
      * @param    os                  an OutputStream
-     *
      * @throws   IOException
-     *
      */
-    public void dump(OutputStream os) throws IOException {
+    public void dump(final OutputStream os) throws IOException {
         _objHdr.dump(os);
 
         if (_objHdr.getCType() == 1) {
-            os.write(new String("Decision (" + getTypeStr() + ")\n").getBytes());
-            os.write(new String("Command code: " + _cmdCode + "\n").getBytes());
-            os.write(new String("Command flags: " + _flags + "\n").getBytes());
+            os.write(("Decision (" + getTypeStr() + ")\n").getBytes());
+            os.write(("Command code: " + _cmdCode + "\n").getBytes());
+            os.write(("Command flags: " + _flags + "\n").getBytes());
         } else {
-            os.write(new String("Decision (" + getTypeStr() + ")\n").getBytes());
-            os.write(new String("Data: " + _data.str() + "\n").getBytes());
+            os.write(("Decision (" + getTypeStr() + ")\n").getBytes());
+            os.write(("Data: " + _data.str() + "\n").getBytes());
         }
     }
 }

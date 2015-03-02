@@ -8,7 +8,6 @@ package org.umu.cops.stack;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.net.UnknownHostException;
 
 /**
  * COPS IPv6 PDP Address
@@ -18,10 +17,10 @@ import java.net.UnknownHostException;
  */
 abstract public class COPSIpv6PdpAddress extends COPSPdpAddress {
 
-    protected COPSObjHeader _objHdr;
-    protected COPSIpv6Address _addr;
-    private short _reserved;
-    protected short _tcpPort;
+    protected final COPSObjHeader _objHdr;
+    protected final COPSIpv6Address _addr;
+    private final short _reserved;
+    protected final short _tcpPort;
 
     protected COPSIpv6PdpAddress() {
         _addr = new COPSIpv6Address();
@@ -29,75 +28,37 @@ abstract public class COPSIpv6PdpAddress extends COPSPdpAddress {
         _objHdr.setCType((byte) 2);
         // _objHdr.setDataLength((short) _addr.getDataLength() + sizeof(u_int32_t));
         _objHdr.setDataLength((short) (_addr.getDataLength() + 4));
+        _reserved = (short)0;
+        _tcpPort = (short)0;
     }
 
-    protected COPSIpv6PdpAddress(byte[] dataPtr) {
+    protected COPSIpv6PdpAddress(final byte[] dataPtr) {
+        _addr = new COPSIpv6Address();
         _objHdr = new COPSObjHeader();
         _objHdr.parse(dataPtr);
         // _objHdr.checkDataLength();
 
-        byte[] buf = new byte[16];
+        final byte[] buf = new byte[16];
         System.arraycopy(dataPtr,2,buf,0,16);
         _addr.parse(buf);
 
-        _reserved |= ((short) dataPtr[20]) << 8;
-        _reserved |= ((short) dataPtr[21]) & 0xFF;
-        _tcpPort |= ((short) dataPtr[22]) << 8;
-        _tcpPort |= ((short) dataPtr[23]) & 0xFF;
+        short tmpReserved = (short)0;
+        tmpReserved |= ((short) dataPtr[20]) << 8;
+        tmpReserved |= ((short) dataPtr[21]) & 0xFF;
+        _reserved = tmpReserved;
+
+        short tmpTcpPort = (short)0;
+        tmpTcpPort |= ((short) dataPtr[22]) << 8;
+        tmpTcpPort |= ((short) dataPtr[23]) & 0xFF;
+        _tcpPort = tmpTcpPort;
 
         // _objHdr.setDataLength(_addr.getDataLength() + sizeof(u_int32_t));
         _objHdr.setDataLength((short) (_addr.getDataLength() + 4));
     }
 
     /**
-     * Method setIpAddress
-     *
-     * @param    hostName            a  String
-     *
-     * @throws   UnknownHostException
-     *
-     */
-    public void setIpAddress(String hostName) throws UnknownHostException  {
-        _addr.setIpAddress(hostName);
-    }
-
-    /**
-     * Method setTcpPort
-     *
-     * @param    port                a  short
-     *
-     */
-    public void setTcpPort(short port) {
-        _tcpPort = port;
-    }
-
-    /**
-     * Method getIpName
-     *
-     * @return   a String
-     *
-     * @throws   UnknownHostException
-     *
-     */
-    public String getIpName() throws UnknownHostException {
-        return (_addr.getIpName());
-    }
-
-    /**
-     * Method getTcpPort
-     *
-     * @return   a short
-     *
-     */
-    short getTcpPort() {
-        return _tcpPort;
-    };
-
-    /**
      * Returns size in number of octects, including header
-     *
      * @return   a short
-     *
      */
     public short getDataLength() {
         //Add the size of the header also
@@ -106,28 +67,23 @@ abstract public class COPSIpv6PdpAddress extends COPSPdpAddress {
 
     /**
      * Method isIpv6PdpAddress
-     *
      * @return   a boolean
-     *
      */
     public boolean isIpv6PdpAddress() {
         return true;
     }
 
     /**
-     * Write data on a given network socket
-     *
+     * Write data on a given network _socket
      * @param    id                  a  Socket
-     *
      * @throws   IOException
-     *
      */
-    public void writeData(Socket id) throws IOException {
+    public void writeData(final Socket id) throws IOException {
         //
         _objHdr.writeData(id);
         _addr.writeData(id);
 
-        byte[] buf = new byte[4];
+        final byte[] buf = new byte[4];
         buf[0] = (byte) (_reserved >> 8);
         buf[1] = (byte) _reserved;
         buf[2] = (byte) (_tcpPort >> 8);

@@ -4,7 +4,16 @@
 
 package org.pcmm;
 
+/*
+ TODO - this class should probably be removed as it appears to contain environment specific and allows for
+ hardcoding of logic.
+  */
+@Deprecated
 public class PCMMGlobalConfig {
+
+    /** Well-known port for COPS */
+    public static final int WELL_KNOWN_CMTS_PORT = 3918;
+
     // System
     public static int Debug = 0;
     public static int LogLevel = 0;

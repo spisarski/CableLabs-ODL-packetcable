@@ -21,25 +21,13 @@ public class COPSIpv4OutInterface extends COPSIpv4Interface {
         _objHdr.setCNum(COPSObjHeader.COPS_ININTF);
     }
 
-    public COPSIpv4OutInterface(byte[] dataPtr) {
+    public COPSIpv4OutInterface(final byte[] dataPtr) {
         super(dataPtr);
     }
 
     /**
-     * Method className
-     *
-     * @return   a String
-     *
-     */
-    public String className() {
-        return "COPSIpv4OutInterface";
-    }
-
-    /**
      * Method isInInterface
-     *
      * @return   a boolean
-     *
      */
     public boolean isInInterface() {
         return true;
@@ -47,13 +35,10 @@ public class COPSIpv4OutInterface extends COPSIpv4Interface {
 
     /**
      * Writes data to given socket
-     *
      * @param    id                  a  Socket
-     *
      * @throws   IOException
-     *
      */
-    public void writeData(Socket id) throws IOException {
+    public void writeData(final Socket id) throws IOException {
     }
 
 }

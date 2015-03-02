@@ -3,21 +3,21 @@
  */
 package org.pcmm.concurrent.impl;
 
-import java.util.concurrent.Callable;
-
 import org.pcmm.concurrent.IWorker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.Callable;
 
 /**
  * 
  */
 public class Worker implements IWorker {
 
-	private int waitTimer;
+    private int waitTimer;
 
 	private Callable<?> task;
-	private Logger logger = LoggerFactory.getLogger(IWorker.class);
+	private static final Logger logger = LoggerFactory.getLogger(Worker.class);
 
 	public Worker() {
 
@@ -34,6 +34,7 @@ public class Worker implements IWorker {
 	 */
 	@Override
 	public void run() {
+        logger.info("Running");
 		try {
 			if (waitTimer > 0)
 				Thread.sleep(waitTimer);

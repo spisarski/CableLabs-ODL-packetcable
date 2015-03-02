@@ -23,12 +23,12 @@ public class COPSContext extends COPSObjBase {
     public final static byte OUT = 0x04;
     public final static byte CONFIG = 0x08;
 
-    private COPSObjHeader _objHdr;
-    private short _rType;
-    private short _mType;
+    private final COPSObjHeader _objHdr;
+    private transient short _rType;
+    private transient short _mType;
 
     ///
-    public COPSContext(short rType, short mType ) {
+    public COPSContext(final short rType, final short mType ) {
         _objHdr = new COPSObjHeader();
         _objHdr.setCNum(COPSObjHeader.COPS_CONTEXT);
         _objHdr.setCType((byte) 1);
@@ -40,7 +40,7 @@ public class COPSContext extends COPSObjBase {
     /**
           Parse the data and create a Context object
      */
-    protected COPSContext(byte[] dataPtr) {
+    protected COPSContext(final byte[] dataPtr) {
         _objHdr = new COPSObjHeader();
         _objHdr.parse(dataPtr);
         // _objHdr.checkDataLength();
@@ -56,31 +56,22 @@ public class COPSContext extends COPSObjBase {
 
     /**
      * Write object in network byte order to a given network socket
-     *
      * @param    id                  a  Socket
-     *
      * @throws   IOException
-     *
      */
-    public void writeData(Socket id) throws IOException {
+    public void writeData(final Socket id) throws IOException {
         _objHdr.writeData(id);
-
         byte[] buf = new byte[4];
-
         buf[0] = (byte) (_rType >> 8);
         buf[1] = (byte) _rType;
-
         buf[2] = (byte) (_mType >> 8);
         buf[3] = (byte) _mType;
-
         COPSUtil.writeData(id, buf, 4);
     }
 
     /**
      * Returns size in number of octects, including header
-     *
      * @return   a short
-     *
      */
     public short getDataLength() {
         //Add the size of the header also
@@ -89,12 +80,10 @@ public class COPSContext extends COPSObjBase {
 
     /**
      * Returns the detail description of the request type
-     *
      * @return   a String
-     *
      */
     public String getDescription() {
-        String retStr = new String();
+        String retStr = "";
         if ((_rType & 0x01) != 0) {
             retStr += (retStr.length() != 0) ? "," : "";
             retStr += "Incoming Message/Admission Control";
@@ -116,79 +105,63 @@ public class COPSContext extends COPSObjBase {
 
     /**
      * Method isIncomingMessage
-     *
      * @return   a boolean
-     *
      */
     public boolean isIncomingMessage() {
         return (_rType & IN_ADMIN) != 0;
-    };
+    }
 
     /**
      * Method isAdminControl
-     *
      * @return   a boolean
-     *
      */
     public boolean isAdminControl() {
         return (_rType & IN_ADMIN) != 0;
-    };
+    }
 
     /**
      * Method isResourceAllocationReq
-     *
      * @return   a boolean
-     *
      */
     public boolean isResourceAllocationReq() {
         return (_rType & RES_ALLOC) != 0;
-    };
+    }
 
     /**
      * Method isOutgoingMessage
-     *
      * @return   a boolean
-     *
      */
     public boolean isOutgoingMessage() {
         return (_rType & OUT) != 0;
-    };
+    }
 
     /**
      * Method isConfigRequest
-     *
      * @return   a boolean
-     *
      */
     public boolean isConfigRequest() {
         return (_rType & CONFIG) != 0;
-    };
+    }
 
     /**
      * Method getMessageType
-     *
      * @return   a short
-     *
      */
     public short getMessageType() {
         return (_mType) ;
-    };
+    }
 
     /**
      * Method getRequestType
-     *
      * @return   a short
-     *
      */
     public short getRequestType() {
         return (_rType);
-    };
+    }
 
     /**
      * Method isContext
-     *
      * @return   a boolean
-     *
      */
     public boolean isContext() {
         return true;
@@ -196,15 +169,12 @@ public class COPSContext extends COPSObjBase {
 
     /**
      * Write an object textual description in the output stream
-     *
      * @param    os                  an OutputStream
-     *
      * @throws   IOException
-     *
      */
-    public void dump(OutputStream os) throws IOException {
+    public void dump(final OutputStream os) throws IOException {
         _objHdr.dump(os);
-        os.write(new String("context: " + getDescription() + "," + _mType + "\n").getBytes());
+        os.write(("context: " + getDescription() + "," + _mType + "\n").getBytes());
     }
 }
 

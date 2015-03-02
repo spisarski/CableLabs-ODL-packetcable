@@ -23,6 +23,9 @@ public class COPSClientOpenMsg extends COPSMsg {
     private COPSPdpAddress _pdpAddress;
     private COPSIntegrity _integrity;
 
+    /**
+     * Default Constructor
+     */
     public COPSClientOpenMsg() {
         _pepId = null;
         _clientSI = null;
@@ -31,24 +34,18 @@ public class COPSClientOpenMsg extends COPSMsg {
         _hdr = null;
     }
 
-    protected COPSClientOpenMsg(byte[] data) throws COPSException {
-        _pepId = null;
-        _clientSI = null;
-        _pdpAddress = null;
-        _integrity = null;
-        _hdr = null;
+    /**
+     * Constructor with data
+     * @param data - the data to parse
+     * @throws COPSException
+     */
+    protected COPSClientOpenMsg(final byte[] data) throws COPSException {
+        this();
         parse(data);
     }
 
-    /**
-     * Method writeData
-     *
-     * @param    id                  a  Socket
-     *
-     * @throws   IOException
-     *
-     */
-    public void writeData(Socket id) throws IOException {
+    @Override
+    public void writeData(final Socket id) throws IOException {
         // checkSanity();
         if (_hdr != null)_hdr.writeData(id);
         if (_pepId != null) _pepId.writeData(id);
@@ -59,13 +56,10 @@ public class COPSClientOpenMsg extends COPSMsg {
 
     /**
      * Add message header
-     *
      * @param    hdr                 a  COPSHeader
-     *
      * @throws   COPSException
-     *
      */
-    public void add (COPSHeader hdr) throws COPSException {
+    public void add(final COPSHeader hdr) throws COPSException {
         if (hdr == null)
             throw new COPSException ("Null Header");
         if (hdr.getOpCode() != COPSHeader.COPS_OP_OPN)
@@ -76,13 +70,10 @@ public class COPSClientOpenMsg extends COPSMsg {
 
     /**
      * Add PEP Identification Object
-     *
      * @param    pepid               a  COPSPepId
-     *
      * @throws   COPSException
-     *
      */
-    public void add (COPSPepId pepid) throws COPSException {
+    public void add(final COPSPepId pepid) throws COPSException {
         if (pepid == null)
             throw new COPSException ("Null COPSPepId");
         if (!pepid.isPepId())
@@ -93,13 +84,10 @@ public class COPSClientOpenMsg extends COPSMsg {
 
     /**
      * Add Client Specific Information Object
-     *
      * @param    clientSI            a  COPSClientSI
-     *
      * @throws   COPSException
-     *
      */
-    public void add (COPSClientSI clientSI) throws COPSException {
+    public void add(final COPSClientSI clientSI) throws COPSException {
         if (clientSI == null)
             throw new COPSException ("Null COPSClientSI");
         if (!clientSI.isClientSI())
@@ -110,13 +98,10 @@ public class COPSClientOpenMsg extends COPSMsg {
 
     /**
      * Add PDP Address
-     *
      * @param    pdpAddr             a  COPSPdpAddress
-     *
      * @throws   COPSException
-     *
      */
-    public void add (COPSPdpAddress pdpAddr) throws COPSException {
+    public void add(final COPSPdpAddress pdpAddr) throws COPSException {
         if (pdpAddr == null)
             throw new COPSException ("Null COPSPdpAddress");
         if (!pdpAddr.isLastPdpAddress())
@@ -127,13 +112,10 @@ public class COPSClientOpenMsg extends COPSMsg {
 
     /**
      * Add Integrity object
-     *
      * @param    integrity           a  COPSIntegrity
-     *
      * @throws   COPSException
-     *
      */
-    public void add (COPSIntegrity integrity) throws COPSException {
+    public void add(final COPSIntegrity integrity) throws COPSException {
         if (integrity == null)
             throw new COPSException ("Null Integrity");
         if (!integrity.isMessageIntegrity())
@@ -142,9 +124,7 @@ public class COPSClientOpenMsg extends COPSMsg {
         setMsgLength();
     }
 
-    /** Checks the sanity of COPS message and throw an
-          * COPSBadDataException when data is bad.
-    */
+    @Override
     public void checkSanity() throws COPSException {
         if ((_hdr == null) || (_pepId == null))
             throw new COPSException("Bad message format");
@@ -152,69 +132,31 @@ public class COPSClientOpenMsg extends COPSMsg {
 
     /**
      * Method getPepId
-     *
      * @return   a COPSPepId
-     *
      */
     public COPSPepId getPepId() {
         return _pepId;
     }
 
     /**
-     * Method hasClientSI
-     *
-     * @return   a boolean
-     *
-     */
-    public boolean hasClientSI() {
-        return (_clientSI != null);
-    }
-
-    /**
      * Method getClientSI
-     *
      * @return   a COPSClientSI
-     *
      */
     public COPSClientSI getClientSI() {
         return (_clientSI);
     }
 
     /**
-     * Method hasPdpAddress
-     *
-     * @return   a boolean
-     *
-     */
-    public boolean hasPdpAddress() {
-        return (_pdpAddress != null);
-    }
-
-    /**
      * Method getPdpAddress
-     *
      * @return   a COPSPdpAddress
-     *
      */
     public COPSPdpAddress getPdpAddress() {
         return _pdpAddress;
     }
 
     /**
-     * Method hasIntegrity
-     *
-     * @return   a boolean
-     *
-     */
-    public boolean hasIntegrity() {
-        return (_integrity != null);
-    }
-
-    /**
      * Method getIntegrity
-     *
      * @return   a COPSIntegrity
-     *
      */
     public COPSIntegrity getIntegrity() {
         return _integrity;
@@ -222,9 +164,7 @@ public class COPSClientOpenMsg extends COPSMsg {
 
     /**
      * Set the message length, base on the set of objects it contains
-     *
      * @throws   COPSException
-     *
      */
     private void setMsgLength() throws COPSException {
         short len = 0;
@@ -235,21 +175,14 @@ public class COPSClientOpenMsg extends COPSMsg {
         _hdr.setMsgLength(len);
     }
 
-    /**
-     * Method parse
-     *
-     * @param    data                a  byte[]
-     *
-     * @throws   COPSException
-     *
-     */
-    protected void parse(byte[] data) throws COPSException {
+    @Override
+    protected void parse(final byte[] data) throws COPSException {
         parseHeader(data);
         while (_dataStart < _dataLength) {
             byte[] buf = new byte[data.length - _dataStart];
             System.arraycopy(data,_dataStart,buf,0,data.length - _dataStart);
 
-            COPSObjHeader objHdr = new COPSObjHeader (buf);
+            final COPSObjHeader objHdr = new COPSObjHeader (buf);
             switch (objHdr.getCNum()) {
             case COPSObjHeader.COPS_PEPID: {
                 _pepId = new COPSPepId(buf);
@@ -283,16 +216,8 @@ public class COPSClientOpenMsg extends COPSMsg {
         checkSanity();
     }
 
-    /**
-     * Method parse
-     *
-     * @param    hdr                 a  COPSHeader
-     * @param    data                a  byte[]
-     *
-     * @throws   COPSException
-     *
-     */
-    protected void parse(COPSHeader hdr, byte[] data) throws COPSException {
+    @Override
+    protected void parse(final COPSHeader hdr, final byte[] data) throws COPSException {
         if (hdr.getOpCode() != COPSHeader.COPS_OP_OPN)
             throw new COPSException("Error Header");
         _hdr = hdr;
@@ -300,15 +225,8 @@ public class COPSClientOpenMsg extends COPSMsg {
         setMsgLength();
     }
 
-    /**
-     * Write an object textual description in the output stream
-     *
-     * @param    os                  an OutputStream
-     *
-     * @throws   IOException
-     *
-     */
-    public void dump(OutputStream os) throws IOException {
+    @Override
+    public void dump(final OutputStream os) throws IOException {
         _hdr.dump(os);
 
         if (_pepId != null)

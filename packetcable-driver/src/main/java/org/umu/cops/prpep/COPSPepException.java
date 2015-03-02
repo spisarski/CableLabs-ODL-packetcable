@@ -6,35 +6,22 @@
 
 package org.umu.cops.prpep;
 
+import org.umu.cops.stack.COPSException;
+
 /**
  * COPS PEP Exception
  *
  * @version COPSPepException.java, v 2.00 2004
  *
  */
-public class COPSPepException extends Exception {
+public class COPSPepException extends COPSException {
 
-    private int rc;
-    final static int GENERAL_ERROR = 0x00000001;
-
-    public COPSPepException(String s) {
-        super(s);
-        rc=0;
+    public COPSPepException(final String s) {
+        super(s, 0);
     }
 
-    public COPSPepException(String msg, int retCode) {
-        super(msg);
-        rc = retCode;
-    }
-
-    /**
-     * Return error code
-     *
-     * @return    error code
-     *
-     */
-    public int returnCode() {
-        return rc;
+    public COPSPepException(final String msg, final int retCode) {
+        super(msg, retCode);
     }
 
 }

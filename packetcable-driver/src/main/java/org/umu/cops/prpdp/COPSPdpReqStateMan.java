@@ -6,196 +6,109 @@
 
 package org.umu.cops.prpdp;
 
-import java.net.Socket;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.Vector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.umu.cops.COPSReqStateMan;
+import org.umu.cops.stack.*;
 
-import org.umu.cops.stack.COPSClientSI;
-import org.umu.cops.stack.COPSContext;
-import org.umu.cops.stack.COPSData;
-import org.umu.cops.stack.COPSDeleteMsg;
-import org.umu.cops.stack.COPSError;
-import org.umu.cops.stack.COPSHandle;
-import org.umu.cops.stack.COPSHeader;
-import org.umu.cops.stack.COPSPrObjBase;
-import org.umu.cops.stack.COPSReportMsg;
-import org.umu.cops.stack.COPSReportType;
-import org.umu.cops.stack.COPSReqMsg;
-import org.umu.cops.stack.COPSSyncStateMsg;
+import java.net.Socket;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * State manager class for provisioning requests, at the PDP side.
  */
-public class COPSPdpReqStateMan {
+public class COPSPdpReqStateMan extends COPSReqStateMan {
 
-    /**
-     * Request State created
-     */
-    public final static short ST_CREATE = 1;
-    /**
-     * Request received
-     */
-    public final static short ST_INIT = 2;
-    /**
-     * Decisions sent
-     */
-    public final static short ST_DECS = 3;
-    /**
-     * Report received
-     */
-    public final static short ST_REPORT = 4;
-    /**
-     * Request State finalized
-     */
-    public final static short ST_FINAL = 5;
-    /**
-     * New Request State solicited
-     */
-    public final static short ST_NEW = 6;
-    /**
-     * Delete Request State solicited
-     */
-    public final static short ST_DEL = 7;
-    /**
-     * SYNC request sent
-     */
-    public final static short ST_SYNC = 8;
-    /**
-     * SYNC completed
-     */
-    public final static short ST_SYNCALL = 9;
-    /**
-     * Close connection received
-     */
-    public final static short ST_CCONN = 10;
-    /**
-     * Keep-alive timeout
-     */
-    public final static short ST_NOKA = 11;
-    /**
-     * Accounting timeout
-     */
-    public final static short ST_ACCT = 12;
-
-    /**
-     * COPS client-type that identifies the policy client
-     */
-    protected short _clientType;
-
-    /**
-     *  COPS client handle used to uniquely identify a particular
-     *  PEP's request for a client-type
-     */
-    protected COPSHandle _handle;
+    private final static Logger logger = LoggerFactory.getLogger(COPSPdpReqStateMan.class);
 
     /**
      * Object for performing policy data processing
+     * This value can be null
      */
-    protected COPSPdpDataProcess _process;
+    private final COPSPdpDataProcess _pdpProcess;
 
     /**
-     *  Current state of the request being managed
+     * Current state of the request being managed
      */
     protected short _status;
 
-    /** COPS message transceiver used to send COPS messages */
-    protected COPSPdpMsgSender _sender;
+    /**
+     * COPS message transceiver used to send COPS messages
+     */
+    protected transient COPSPdpMsgSender _sender;
 
     /**
      * Creates a request state manager
-     * @param clientType    Client-type
-     * @param clientHandle  Client handle
+     *
+     * @param clientType   Client-type
+     * @param clientHandle Client handle
      */
-    public COPSPdpReqStateMan(short clientType, String clientHandle) {
-        // COPS Handle
-        _handle = new COPSHandle();
-        COPSData id = new COPSData(clientHandle);
-        _handle.setId(id);
-        // client-type
-        _clientType = clientType;
-
-        _status = ST_CREATE;
+    public COPSPdpReqStateMan(final short clientType, final String clientHandle) {
+        this(clientType, clientHandle, null);
     }
 
     /**
-     * Gets the client handle
-     * @return   Client's <tt>COPSHandle</tt>
+     * Creates a request state manager
+     *
+     * @param clientType   Client-type
+     * @param clientHandle Client handle
+     * @param process      the data processor which can be null
      */
-    public COPSHandle getClientHandle() {
-        return _handle;
-    }
-
-    /**
-     * Gets the client-type
-     * @return   Client-type value
-     */
-    public short getClientType() {
-        return _clientType;
-    }
-
-    /**
-     * Gets the status of the request
-     * @return      Request state value
-     */
-    public short getStatus() {
-        return _status;
-    }
-
-    /**
-     * Gets the policy data processing object
-     * @return   Policy data processing object
-     */
-    public COPSPdpDataProcess getDataProcess() {
-        return _process;
-    }
-
-    /**
-     * Sets the policy data processing object
-     * @param   process Policy data processing object
-     */
-    public void setDataProcess(COPSPdpDataProcess process) {
-        _process = process;
+    public COPSPdpReqStateMan(final short clientType, final String clientHandle, final COPSPdpDataProcess process) {
+        super(clientType, clientHandle, process);
+        _pdpProcess = process;
+        logger.info("New COPS PDP request state manager");
     }
 
     /**
      * Called when COPS sync is completed
-     * @param    repMsg              COPS sync message
-     * @throws   COPSPdpException
+     *
+     * @param repMsg COPS sync message
+     * @throws COPSPdpException
      */
-    protected void processSyncComplete(COPSSyncStateMsg repMsg)
-    throws COPSPdpException {
-
+    public void processSyncComplete(final COPSSyncStateMsg repMsg) throws COPSPdpException {
+        logger.info("Process sync complete");
         _status = ST_SYNCALL;
-
-        // maybe we should notifySyncComplete ...
+        // TODO - notifySyncComplete ...
     }
 
     /**
-     * Initializes a new request state over a socket
-     * @param sock  Socket to the PEP
+     * Initializes a new request state over a _socket
+     *
+     * @param sock Socket to the PEP
      * @throws COPSPdpException
      */
-    protected void initRequestState(Socket sock)
-    throws COPSPdpException {
+    @Override
+    public void initRequestState(final Socket sock) throws COPSException {
+        logger.info("Initializing request state");
         // Inits an object for sending COPS messages to the PEP
         _sender = new COPSPdpMsgSender(_clientType, _handle, sock);
+        init();
+    }
 
+    /**
+     * Sets the initial status
+     */
+    protected void init() {
         // Initial state
         _status = ST_INIT;
     }
 
     /**
      * Processes a COPS request
-     * @param msg   COPS request received from the PEP
+     *
+     * @param msg COPS request received from the PEP
      * @throws COPSPdpException
      */
-    protected void processRequest(COPSReqMsg msg)
-    throws COPSPdpException {
-
-        COPSHeader hdrmsg = msg.getHeader();
-        COPSHandle handlemsg = msg.getClientHandle();
-        COPSContext contextmsg = msg.getContext();
+    public void processRequest(final COPSReqMsg msg) throws COPSPdpException {
+        logger.info("Processing request");
+        // TODO - Implement me
+/*
+        final COPSHeader hdrmsg = msg.getHeader();
+        final COPSHandle handlemsg = msg.getClientHandle();
+        final COPSContext contextmsg = msg.getContext();
+*/
 
         //** Analyze the request
         //**
@@ -242,10 +155,10 @@ public class COPSPdpReqStateMan {
         //
         Hashtable removeDecs = new Hashtable();
         Hashtable installDecs = new Hashtable();
-        _process.setClientData(this, reqSIs);
+        _pdpProcess.setClientData(this, reqSIs);
 
-        removeDecs = _process.getRemovePolicy(this);
-        installDecs = _process.getInstallPolicy(this);
+        removeDecs = _pdpProcess.getRemovePolicy(this);
+        installDecs = _pdpProcess.getInstallPolicy(this);
 
         //** We create the SOLICITED decision
         //**
@@ -256,11 +169,11 @@ public class COPSPdpReqStateMan {
 
     /**
      * Processes a report
-     * @param msg   Report message from the PEP
+     *
+     * @param msg Report message from the PEP
      * @throws COPSPdpException
      */
-    protected void processReport(COPSReportMsg msg)
-    throws COPSPdpException {
+    protected void processReport(final COPSReportMsg msg) throws COPSPdpException {
 
         //** Analyze the report
         //**
@@ -281,27 +194,24 @@ public class COPSPdpReqStateMan {
         // COPSHandle handlemsg = msg.getClientHandle();
 
         // Report Type
-        COPSReportType rtypemsg = msg.getReport();
+        final COPSReportType rtypemsg = msg.getReport();
 
         // Named ClientSI
-        Vector clientSIs = msg.getClientSI();
-        Hashtable repSIs = new Hashtable(40);
-        String strobjprid = new String();
-        for (Enumeration e = clientSIs.elements() ; e.hasMoreElements() ;) {
-            COPSClientSI clientSI = (COPSClientSI) e.nextElement();
-
+        final Map<String, String> repSIs = new HashMap<>();
+        String strobjprid = "";
+        for (final COPSClientSI clientSI : msg.getClientSI()) {
             COPSPrObjBase obj = new COPSPrObjBase(clientSI.getData().getData());
             switch (obj.getSNum()) {
-            case COPSPrObjBase.PR_PRID:
-                strobjprid = obj.getData().str();
-                break;
-            case COPSPrObjBase.PR_EPD:
-                repSIs.put(strobjprid, obj.getData().str());
-                // COPSDebug.out(getClass().getName(),"PRID: " + strobjprid);
-                // COPSDebug.out(getClass().getName(),"EPD: " + obj.getData().str());
-                break;
-            default:
-                break;
+                case COPSPrObjBase.PR_PRID:
+                    strobjprid = obj.getData().str();
+                    break;
+                case COPSPrObjBase.PR_EPD:
+                    repSIs.put(strobjprid, obj.getData().str());
+                    // COPSDebug.out(getClass().getName(),"PRID: " + strobjprid);
+                    // COPSDebug.out(getClass().getName(),"EPD: " + obj.getData().str());
+                    break;
+                default:
+                    break;
             }
         }
 
@@ -309,81 +219,63 @@ public class COPSPdpReqStateMan {
         //** the report received
         if (rtypemsg.isSuccess()) {
             _status = ST_REPORT;
-            _process.successReport(this, repSIs);
+            if (_pdpProcess != null) _pdpProcess.successReport(this, repSIs);
         } else if (rtypemsg.isFailure()) {
             _status = ST_REPORT;
-            _process.failReport(this, repSIs);
-        } else if (rtypemsg.isAccounting()) {
+            if (_pdpProcess != null) _pdpProcess.failReport(this, repSIs);
+        } else  if (rtypemsg.isAccounting()) {
             _status = ST_ACCT;
-            _process.acctReport(this, repSIs);
+            if (_pdpProcess != null) _pdpProcess.acctReport(this, repSIs);
         }
     }
 
     /**
-     * Called when connection is closed
-     * @param error Reason
-     * @throws COPSPdpException
-     */
-    protected void processClosedConnection(COPSError error)
-    throws COPSPdpException {
-        if (_process != null)
-            _process.notifyClosedConnection(this, error);
-
-        _status = ST_CCONN;
-    }
-
-    /**
-     * Called when no keep-alive is received
-     * @throws COPSPdpException
-     */
-    protected void processNoKAConnection()
-    throws COPSPdpException {
-        if (_process != null)
-            _process.notifyNoKAliveReceived(this);
-
-        _status = ST_NOKA;
-    }
-
-    /**
      * Deletes the request state
+     *
      * @throws COPSPdpException
      */
-    protected void finalizeRequestState()
-    throws COPSPdpException {
-        _sender.sendDeleteRequestState();
+    protected void finalizeRequestState() throws COPSPdpException {
+        if (_sender != null) {
+            _sender.sendDeleteRequestState();
+        }
         _status = ST_FINAL;
     }
 
     /**
      * Asks for a COPS sync
+     *
      * @throws COPSPdpException
      */
-    protected void syncRequestState()
-    throws COPSPdpException {
-        _sender.sendSyncRequestState();
+    protected void syncRequestState() throws COPSPdpException {
+        if (_sender != null) {
+            _sender.sendSyncRequestState();
+        }
         _status = ST_SYNC;
     }
 
     /**
      * Opens a new request state
+     *
      * @throws COPSPdpException
      */
-    protected void openNewRequestState()
-    throws COPSPdpException {
-        _sender.sendOpenNewRequestState();
+    protected void openNewRequestState() throws COPSPdpException {
+        if (_sender != null) {
+            _sender.sendOpenNewRequestState();
+        }
         _status = ST_NEW;
     }
 
     /**
      * Processes a COPS delete message
-     * @param dMsg  <tt>COPSDeleteMsg</tt> received from the PEP
+     *
+     * @param dMsg <tt>COPSDeleteMsg</tt> received from the PEP
      * @throws COPSPdpException
      */
-    protected void processDeleteRequestState(COPSDeleteMsg dMsg)
-    throws COPSPdpException {
-        if (_process != null)
-            _process.closeRequestState(this);
-
+    public void processDeleteRequestState(COPSDeleteMsg dMsg) throws COPSPdpException {
+        logger.info("Process delete request state");
+        if (_pdpProcess != null) {
+            _pdpProcess.closeRequestState(this);
+        }
         _status = ST_DEL;
     }
 

@@ -33,13 +33,13 @@ public class COPSPrObjBase {
     protected COPSData _data;
     protected COPSData _padding;
 
-    protected byte[] _dataRep;
+    protected transient byte[] _dataRep;
     ///
     protected COPSPrObjBase() {
         _dataRep = null;
     }
 
-    public COPSPrObjBase(byte[] dataPtr) {
+    public COPSPrObjBase(final byte[] dataPtr) {
         _dataRep = null;
 
         _len |= ((short) dataPtr[0]) << 8;
@@ -57,86 +57,68 @@ public class COPSPrObjBase {
     /**
      * Add padding in the data, if the Provisioning data does
      * not fall on 32-bit boundary
-     *
      * @param    len                 an int
-     *
      * @return   a COPSData
-     *
      */
-    public COPSData getPadding(int len) {
-        byte[] padBuf = new byte[len];
+    public COPSData getPadding(final int len) {
+        final byte[] padBuf = new byte[len];
         Arrays.fill(padBuf, (byte) 0);
-        COPSData d = new COPSData(padBuf, 0, len);
-        return d;
+        return new COPSData(padBuf, 0, len);
     }
 
     /**
      * Method isPRID
-     *
      * @return   a boolean
-     *
      */
     public boolean isPRID() {
         return false;
-    };
+    }
 
     /**
      * Method isPRIDPrefix
-     *
      * @return   a boolean
-     *
      */
     public boolean isPRIDPrefix() {
         return false;
-    };
+    }
 
     /**
      * Method isEncodedInstanceData
-     *
      * @return   a boolean
-     *
      */
     public boolean isEncodedInstanceData() {
         return false;
-    };
+    }
 
     /**
      * Method isGlobalPrError
-     *
      * @return   a boolean
-     *
      */
     public boolean isGlobalPrError() {
         return false;
-    };
+    }
 
     /**
      * Method isPRCClassError
-     *
      * @return   a boolean
-     *
      */
     public boolean isPRCClassError() {
         return false;
-    };
+    }
 
     /**
      * Method isErrorPRID
-     *
      * @return   a boolean
-     *
      */
     public boolean isErrorPRID() {
         return false;
-    };
+    }
 
     /**
      * Method setData
-     *
      * @param    data                a  COPSData
-     *
      */
-    public void setData(COPSData data) {
+    public void setData(final COPSData data) {
         _data = data;
         if (_data.length() % 4 != 0) {
             int padLen = 4 - (_data.length() % 4);
@@ -147,91 +129,77 @@ public class COPSPrObjBase {
 
     /**
      * Get the class information identifier cNum
-     *
      * @return   a byte
-     *
      */
     public byte getSNum() {
         return _sNum;
-    };
+    }
 
     /**
      * Get the type per sNum
-     *
      * @return   a byte
-     *
      */
     public byte getSType() {
         return _sType;
-    };
+    }
 
     /**
      * Get stringified CNum
-     *
      * @return   a String
-     *
      */
     public String getStrSNum() {
         switch (getSNum()) {
-        case PR_PRID:
-            return ("PRID");
-        case PR_PPRID:
-            return ("PRID Prefix");
-        case PR_EPD:
-            return ("EPD");
-        case PR_GPERR:
-            return ("GPERR");
-        case PR_CPERR:
-            return ("CPERR");
-        case PR_IDERR:
-            return ("IDERR");
-        default:
-            return ("Unknown");
+            case PR_PRID:
+                return ("PRID");
+            case PR_PPRID:
+                return ("PRID Prefix");
+            case PR_EPD:
+                return ("EPD");
+            case PR_GPERR:
+                return ("GPERR");
+            case PR_CPERR:
+                return ("CPERR");
+            case PR_IDERR:
+                return ("IDERR");
+            default:
+                return ("Unknown");
         }
     }
 
     /**
      * Returns size in number of octects, including header
-     *
      * @return   a short
-     *
      */
     public short getDataLength() {
         //Add the size of the header also
         //Header length contains the header+data length
-        int lpadding = 0;
+        final int lpadding;
         if (_padding != null) lpadding = _padding.length();
+        else lpadding = 0;
         return ( (short) (_len + lpadding));
     }
 
     /**
      * Method getData
-     *
      * @return   a COPSData
-     *
      */
     public COPSData getData() {
         return _data;
-    };
+    }
 
     /**
-     * Write data on a given network socket
-     *
+     * Write data on a given network _socket
      * @param    id                  a  Socket
-     *
      * @throws   IOException
-     *
      */
-    public void writeData(Socket id) throws IOException {
-        byte[] dataRep = getDataRep();
+    public void writeData(final Socket id) throws IOException {
+        final byte[] dataRep = getDataRep();
         COPSUtil.writeData(id, dataRep, dataRep.length);
     }
 
     /**
      * Get the binary data contained in the object
-     *
      * @return   a byte[]
-     *
      */
     public byte[] getDataRep() {
         _dataRep = new byte[getDataLength()];
@@ -239,7 +207,7 @@ public class COPSPrObjBase {
         _dataRep[0] = (byte) (_len >> 8);
         _dataRep[1] = (byte) _len;
         _dataRep[2] = (byte) (_sNum >> 8);
-        _dataRep[3] = (byte) _sNum;
+        _dataRep[3] = _sNum;
 
         System.arraycopy(_data.getData(), 0, _dataRep, 4, _data.length());
 

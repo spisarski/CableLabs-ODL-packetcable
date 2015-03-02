@@ -24,9 +24,7 @@ abstract public class COPSMsg {
 
     /**
      * Method getHeader
-     *
      * @return   a COPSHeader
-     *
      */
     public COPSHeader getHeader() {
         return _hdr;
@@ -34,54 +32,32 @@ abstract public class COPSMsg {
 
     /**
      * Method writeData
-     *
      * @param    id                  a  Socket
-     *
      * @throws   IOException
-     *
      */
     public abstract void writeData(Socket id) throws IOException;
 
     /**
-     * Method getMsgLength
-     *
-     * @return   an int
-     *
-     */
-    public int getMsgLength() {
-        return _hdr.getMsgLength();
-    }
-
-    /**
      * Method parse
-     *
      * @param    hdr                 a  COPSHeader
      * @param    data                a  byte[]
-     *
      * @throws   COPSException
-     *
      */
     protected abstract void parse(COPSHeader hdr, byte[] data) throws COPSException;
 
     /**
      * Method parse
-     *
      * @param    data                a  byte[]
-     *
      * @throws   COPSException
-     *
      */
     protected abstract void parse(byte[] data) throws COPSException;
 
     /**
      * Method parseHeader
-     *
      * @param    data                a  byte[]
-     *
      * @throws   COPSException
-     *
      */
-    protected void parseHeader(byte[] data) throws COPSException {
+    protected void parseHeader(final byte[] data) throws COPSException {
         _dataLength = 0;
         _dataStart = 0;
         if (_hdr == null) {
@@ -108,14 +84,11 @@ abstract public class COPSMsg {
 
     /**
      * Write an object textual description in the output stream
-     *
      * @param    os                  an OutputStream
-     *
      * @throws   IOException
-     *
      */
-    public void dump(OutputStream os) throws IOException {
-        os.write(new String("COPS Message").getBytes());
+    public void dump(final OutputStream os) throws IOException {
+        os.write(("COPS Message").getBytes());
     }
 
 }

@@ -6,6 +6,9 @@
 
 package org.umu.cops.stack;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
@@ -18,40 +21,47 @@ import java.net.Socket;
  */
 public class COPSClientAcceptMsg extends COPSMsg {
 
-    /* COPSHeader coming from base class */
-    private COPSKATimer _kaTimer;
-    private COPSAcctTimer _acctTimer;
-    private COPSIntegrity _integrity;
+    private final static Logger logger = LoggerFactory.getLogger(COPSClientAcceptMsg.class);
 
-    ///Constructor
+    /* COPSHeader coming from base class */
+    private transient COPSKATimer _kaTimer;
+    private transient COPSAcctTimer _acctTimer;
+    private transient COPSIntegrity _integrity;
+
+    /**
+     * Default constructor
+     */
     public COPSClientAcceptMsg() {
         _kaTimer = null;
         _acctTimer = null;
         _integrity = null;
+        logger.info("New COPS client accept message");
     }
 
-    ///Create object from data
-    protected COPSClientAcceptMsg(byte[] data) throws COPSException {
+    /**
+     * Constructor with some data
+     * @param data - the data to parse
+     * @throws COPSException
+     */
+    protected COPSClientAcceptMsg(final byte[] data) throws COPSException {
+        this();
         parse(data);
     }
 
-    /** Checks the sanity of COPS message and throw an
-      * COPSBadDataException when data is bad.
-      */
+    @Override
     public void checkSanity() throws COPSException {
+        logger.info("Checking sanity");
         if ((_hdr == null) || (_kaTimer == null))
             throw new COPSException("Bad message format");
     }
 
     /**
      * Add message header
-     *
      * @param    hdr                 a  COPSHeader
-     *
      * @throws   COPSException
-     *
      */
-    public void add (COPSHeader hdr) throws COPSException {
+    public void add(final COPSHeader hdr) throws COPSException {
+        logger.info("Adding COPSHeader");
         if (hdr == null)
             throw new COPSException ("Null Header");
         if (hdr.getOpCode() != COPSHeader.COPS_OP_CAT)
@@ -62,13 +72,11 @@ public class COPSClientAcceptMsg extends COPSMsg {
 
     /**
      * Add Timer object to the message
-     *
      * @param    timer               a  COPSTimer
-     *
      * @throws   COPSException
-     *
      */
-    public void add (COPSTimer timer) throws COPSException {
+    public void add(final COPSTimer timer) throws COPSException {
+        logger.info("Adding COPSTimer");
         if (timer.isKATimer()) {
             _kaTimer = (COPSKATimer) timer;
         } else {
@@ -79,13 +87,11 @@ public class COPSClientAcceptMsg extends COPSMsg {
 
     /**
      * Add Integrity objects
-     *
      * @param    integrity           a  COPSIntegrity
-     *
      * @throws   COPSException
-     *
      */
-    public void add (COPSIntegrity integrity) throws COPSException {
+    public void add(final COPSIntegrity integrity) throws COPSException {
+        logger.info("Adding COPSIntegrity");
         if (integrity == null)
             throw new COPSException ("Null Integrity");
         if (!integrity.isMessageIntegrity())
@@ -96,63 +102,31 @@ public class COPSClientAcceptMsg extends COPSMsg {
 
     /**
      * Method getKATimer
-     *
      * @return   a COPSKATimer
-     *
      */
     public COPSKATimer getKATimer() {
         return _kaTimer;
-    };
-
-    /**
-     * Returns true if has a account timer object
-     *
-     * @return   a boolean
-     *
-     */
-    public boolean hasAcctTimer() {
-        return (_acctTimer != null);
-    };
+    }
 
     /**
      * Should check hasAcctTimer() before calling
-     *
      * @return   a COPSAcctTimer
-     *
      */
     public COPSAcctTimer getAcctTimer() {
         return (_acctTimer);
     }
 
     /**
-     * Returns true if has a Integrity object
-     *
-     * @return   a boolean
-     *
-     */
-    public boolean hasIntegrity() {
-        return (_integrity != null);
-    };
-
-    /**
      * Should check hasIntegrity() before calling
-     *
      * @return   a COPSIntegrity
-     *
      */
     public COPSIntegrity getIntegrity() {
         return (_integrity);
     }
 
-    /**
-     * Writes data to a given socket id
-     *
-     * @param    id                  a  Socket
-     *
-     * @throws   IOException
-     *
-     */
-    public void writeData(Socket id) throws IOException {
+    @Override
+    public void writeData(final Socket id) throws IOException {
+        logger.info("Writing data");
         // checkSanity();
         if (_hdr != null) _hdr.writeData(id);
         if (_kaTimer != null) _kaTimer.writeData(id);
@@ -160,15 +134,8 @@ public class COPSClientAcceptMsg extends COPSMsg {
         if (_integrity != null) _integrity.writeData(id);
     }
 
-    /**
-     * Method parse
-     *
-     * @param    data                a  byte[]
-     *
-     * @throws   COPSException
-     *
-     */
-    protected void parse(byte[] data) throws COPSException {
+    @Override
+    protected void parse(final byte[] data) throws COPSException {
         parseHeader(data);
 
         while (_dataStart < _dataLength) {
@@ -200,16 +167,8 @@ public class COPSClientAcceptMsg extends COPSMsg {
         checkSanity();
     }
 
-    /**
-     * Method parse
-     *
-     * @param    hdr                 a  COPSHeader
-     * @param    data                a  byte[]
-     *
-     * @throws   COPSException
-     *
-     */
-    protected void parse(COPSHeader hdr, byte[] data) throws COPSException {
+    @Override
+    protected void parse(final COPSHeader hdr, final byte[] data) throws COPSException {
         if (hdr.getOpCode() != COPSHeader.COPS_OP_CAT)
             throw new COPSException("Error Header");
         _hdr = hdr;
@@ -219,9 +178,7 @@ public class COPSClientAcceptMsg extends COPSMsg {
 
     /**
      * Set the message length, base on the set of objects it contains
-     *
      * @throws   COPSException
-     *
      */
     protected void setMsgLength() throws COPSException {
         short len = 0;
@@ -231,15 +188,9 @@ public class COPSClientAcceptMsg extends COPSMsg {
         _hdr.setMsgLength(len);
     }
 
-    /**
-     * Write an object textual description in the output stream
-     *
-     * @param    os                  an OutputStream
-     *
-     * @throws   IOException
-     *
-     */
-    public void dump(OutputStream os) throws IOException {
+    @Override
+    public void dump(final OutputStream os) throws IOException {
+        logger.info("Dump");
         _hdr.dump(os);
 
         if (_kaTimer != null)

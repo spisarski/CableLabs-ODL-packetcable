@@ -18,9 +18,9 @@ import java.net.Socket;
  */
 public class COPSTimer extends COPSObjBase {
 
-    protected COPSObjHeader _objHdr;
-    private short _reserved;
-    private short _timerValue;
+    protected final COPSObjHeader _objHdr;
+    private transient short _reserved;
+    private transient short _timerValue;
 
     /**
      * Returns size in number of octects, including header
@@ -41,7 +41,7 @@ public class COPSTimer extends COPSObjBase {
      */
     public short getTimerVal() {
         return _timerValue;
-    };
+    }
 
     /**
      * Method isTimer
@@ -51,7 +51,7 @@ public class COPSTimer extends COPSObjBase {
      */
     public boolean isTimer() {
         return true;
-    };
+    }
 
     /**
      * Method isKATimer
@@ -61,7 +61,7 @@ public class COPSTimer extends COPSObjBase {
      */
     public boolean isKATimer() {
         return false;
-    };
+    }
 
     /**
      * Method isAcctTimer
@@ -71,20 +71,20 @@ public class COPSTimer extends COPSObjBase {
      */
     public boolean isAcctTimer() {
         return false;
-    };
+    }
 
     /**
-     * Write data to given socket in Network byte order
+     * Write data to given _socket in Network byte order
      *
      * @param    id                  a  Socket
      *
      * @throws   IOException
      *
      */
-    public void writeData(Socket id) throws IOException {
+    public void writeData(final Socket id) throws IOException {
         _objHdr.writeData(id);
 
-        byte[] buf = new byte[4];
+        final byte[] buf = new byte[4];
 
         buf[0] = (byte) (_reserved >> 8);
         buf[1] = (byte) _reserved;
@@ -93,7 +93,7 @@ public class COPSTimer extends COPSObjBase {
         COPSUtil.writeData(id, buf, 4);
     }
 
-    protected COPSTimer(short timeVal) {
+    protected COPSTimer(final short timeVal) {
         _objHdr = new COPSObjHeader();
         //Time range is 1 - 65535 seconds
         _timerValue = timeVal;
@@ -104,7 +104,7 @@ public class COPSTimer extends COPSObjBase {
     /**
      * Receive data that is in netwrok byte order and fill in the obj.
      */
-    protected COPSTimer(byte[] dataPtr) {
+    protected COPSTimer(final byte[] dataPtr) {
         _objHdr = new COPSObjHeader();
         _objHdr.parse(dataPtr);
         // _objHdr.checkDataLength();
@@ -126,9 +126,9 @@ public class COPSTimer extends COPSObjBase {
      * @throws   IOException
      *
      */
-    public void dump(OutputStream os) throws IOException {
+    public void dump(final OutputStream os) throws IOException {
         _objHdr.dump(os);
-        os.write(new String("Timer val: " + _timerValue + "\n").getBytes());
+        os.write(("Timer val: " + _timerValue + "\n").getBytes());
     }
 
 }

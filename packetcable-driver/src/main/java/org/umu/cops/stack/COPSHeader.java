@@ -71,10 +71,11 @@ public class COPSHeader {
     public final static byte COPS_FLAG_NULL = 0;
     public final static byte COPS_FLAG_SOLICITED = 1;
 
-    private byte _versionNflg;
-    private byte _opCode;
-    private short _cType;
-    private int _msgLength;
+    // TODO - this really should be final
+    private transient byte _versionNflg;
+    private final byte _opCode;
+    private transient short _cType;
+    private transient int _msgLength;
 
     public COPSHeader() {
         _versionNflg = 0x10;
@@ -83,7 +84,7 @@ public class COPSHeader {
         _msgLength = 0;
     }
 
-    public COPSHeader(byte opCode, short clientType) {
+    public COPSHeader(final byte opCode, final short clientType) {
         _versionNflg = 0x10;
         _opCode = opCode;
         _cType = clientType;
@@ -91,7 +92,7 @@ public class COPSHeader {
         if (isAKeepAlive()) _cType = 0;
     }
 
-    public COPSHeader(byte opCode) {
+    public COPSHeader(final byte opCode) {
         _versionNflg = 0x10;
         _opCode = opCode;
         _cType = 0;
@@ -102,9 +103,9 @@ public class COPSHeader {
     /**
           Parse data and create COPSHeader object
      */
-    public COPSHeader(byte[] buf) {
-        _versionNflg = (byte) buf[0];
-        _opCode = (byte) buf[1];
+    public COPSHeader(final byte[] buf) {
+        _versionNflg = buf[0];
+        _opCode = buf[1];
         _cType |= ((short) buf[2]) << 8;
         _cType |= ((short) buf[3]) & 0xFF;
         _msgLength |= ((short) buf[4]) << 24;
@@ -115,9 +116,7 @@ public class COPSHeader {
 
     /**
      * If the operation code corresponds with a message Request, return true
-     *
      * @return   a boolean
-     *
      */
     public boolean isARequest() {
         return (_opCode == COPS_OP_REQ);
@@ -125,9 +124,7 @@ public class COPSHeader {
 
     /**
      * If the operation code corresponds with a message Decision, return true
-     *
      * @return   a boolean
-     *
      */
     public boolean isADecision() {
         return (_opCode == COPS_OP_DEC);
@@ -135,9 +132,7 @@ public class COPSHeader {
 
     /**
      * If the operation code corresponds with a message Report, return true
-     *
      * @return   a boolean
-     *
      */
     public boolean isAReport() {
         return (_opCode == COPS_OP_RPT);
@@ -145,9 +140,7 @@ public class COPSHeader {
 
     /**
      * If the operation code corresponds with a message DeleteRequest, return true
-     *
      * @return   a boolean
-     *
      */
     public boolean isADeleteReq() {
         return (_opCode == COPS_OP_DRQ);
@@ -155,9 +148,7 @@ public class COPSHeader {
 
     /**
      * If the operation code corresponds with a message SyncStateReq, return true
-     *
      * @return   a boolean
-     *
      */
     public boolean isASyncStateReq() {
         return (_opCode == COPS_OP_SSQ);
@@ -165,9 +156,7 @@ public class COPSHeader {
 
     /**
      * If the operation code corresponds with a message ClientOpen, return true
-     *
      * @return   a boolean
-     *
      */
     public boolean isAClientOpen() {
         return (_opCode == COPS_OP_OPN);
@@ -175,9 +164,7 @@ public class COPSHeader {
 
     /**
      * If the operation code corresponds with a message ClientAccept, return true
-     *
      * @return   a boolean
-     *
      */
     public boolean isAClientAccept() {
         return (_opCode == COPS_OP_CAT);
@@ -185,9 +172,7 @@ public class COPSHeader {
 
     /**
      * If operation code corresponds with a message ClientClose, return true
-     *
      * @return   a boolean
-     *
      */
     public boolean isAClientClose() {
         return (_opCode == COPS_OP_CC);
@@ -195,9 +180,7 @@ public class COPSHeader {
 
     /**
      * If the operation code corresponds with a message KeepAlive, return true
-     *
      * @return   a boolean
-     *
      */
     public boolean isAKeepAlive() {
         return (_opCode == COPS_OP_KA);
@@ -205,9 +188,7 @@ public class COPSHeader {
 
     /**
      * If the operation code corresponds with a message SSC, return true
-     *
      * @return   a boolean
-     *
      */
     public boolean isASyncComplete() {
         return (_opCode == COPS_OP_SSC);
@@ -215,9 +196,7 @@ public class COPSHeader {
 
     /**
      * Get message length
-     *
      * @return   an int
-     *
      */
     public int getMsgLength() {
         return _msgLength;
@@ -225,9 +204,7 @@ public class COPSHeader {
 
     /**
      * Get header length
-     *
      * @return   an int
-     *
      */
     public int getHdrLength() {
         // return (sizeof(u_int32_t) * 2);
@@ -236,9 +213,7 @@ public class COPSHeader {
 
     /**
      * Get Operation Code
-     *
      * @return   a byte
-     *
      */
     public byte getOpCode() {
         return _opCode;
@@ -246,11 +221,9 @@ public class COPSHeader {
 
     /**
      * Set the solicitation flag
-     *
      * @param    flg                 a  byte
-     *
      */
-    public void setFlag(byte flg) {
+    public void setFlag(final byte flg) {
         _versionNflg &= 0x10;
         _versionNflg |= flg;
     }
@@ -265,13 +238,11 @@ public class COPSHeader {
 
     /**
      * Set the client-type
-     *
      * @param    cType               a  short
-     *
      */
     public void setClientType(short cType) {
         _cType = cType;
-    };
+    }
 
     /**
      * Set the message length
@@ -281,7 +252,7 @@ public class COPSHeader {
      * @throws   COPSException
      *
      */
-    public void setMsgLength(int len) throws COPSException {
+    public void setMsgLength(final int len) throws COPSException {
         if ((len % 4) != 0)
             throw new COPSException ("Message is not aligned on 32 bit intervals");
         _msgLength = len + 8;
@@ -289,37 +260,31 @@ public class COPSHeader {
 
     /**
      * Get client-type
-     *
      * @return   a short
-     *
      */
     public short getClientType() {
         return (_cType);
-    };
+    }
 
     /**
      * Always return true
-     *
      * @return   a boolean
-     *
      */
     public boolean isCOPSHeader() {
         return true;
-    };
+    }
 
     /**
      * Writes object to given network socket in network byte order
-     *
      * @param    id                  a  Socket
-     *
      * @throws   IOException
      *
      */
-    public void writeData(Socket id) throws IOException {
+    public void writeData(final Socket id) throws IOException {
         byte buf[] = new byte[8];
 
-        buf[0] = (byte) _versionNflg;
-        buf[1] = (byte) _opCode;
+        buf[0] = _versionNflg;
+        buf[1] = _opCode;
         buf[2] = (byte) (_cType >> 8);
         buf[3] = (byte) _cType;
         buf[4] = (byte) (_msgLength >> 24);
@@ -330,16 +295,9 @@ public class COPSHeader {
         COPSUtil.writeData(id, buf, 8);
     }
 
-    /**
-     * Get an object textual description
-     *
-     * @return   a String
-     *
-     */
+    @Override
     public String toString() {
-        String str = new String();
-
-        str += "**MSG HEADER** \n";
+        String str = "**MSG HEADER** \n";
         str += "Version: " + (_versionNflg >> 4) + "\n";
         str += "Flags: " + (_versionNflg & 0x01) + "\n";
         str += "OpCode: " + _opCode + "\n";
@@ -350,19 +308,16 @@ public class COPSHeader {
 
     /**
      * Write an object textual description in the output stream
-     *
      * @param    os                  an OutputStream
-     *
      * @throws   IOException
-     *
      */
-    public void dump(OutputStream os) throws IOException {
-        os.write(new String("**MSG HEADER**" + "\n").getBytes());
-        os.write(new String("Version: " + (_versionNflg >> 4) + "\n").getBytes());
-        os.write(new String("Flags: " + (_versionNflg & 0x01) + "\n").getBytes());
-        os.write(new String("OpCode: " + _opCode + "\n").getBytes());
-        os.write(new String("Client-type: " + _cType + "\n").getBytes());
-        os.write(new String("Message-length(bytes): " + _msgLength + "\n").getBytes());
+    public void dump(final OutputStream os) throws IOException {
+        os.write(("**MSG HEADER**" + "\n").getBytes());
+        os.write(("Version: " + (_versionNflg >> 4) + "\n").getBytes());
+        os.write(("Flags: " + (_versionNflg & 0x01) + "\n").getBytes());
+        os.write(("OpCode: " + _opCode + "\n").getBytes());
+        os.write(("Client-type: " + _cType + "\n").getBytes());
+        os.write(("Message-length(bytes): " + _msgLength + "\n").getBytes());
     }
 }
 

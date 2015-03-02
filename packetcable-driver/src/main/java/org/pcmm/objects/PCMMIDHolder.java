@@ -12,24 +12,20 @@ public class PCMMIDHolder extends PCMMResource {
     /**
      * flow id.
      */
-    private int flowID;
+    private final int flowID;
     /**
      * gate id.
      */
-    private int gateID;
+    private transient int gateID;
     /**
      * transaction id.
      */
-    private short transactionID;
+    private final short transactionID;
 
-    public PCMMIDHolder(int flowID, int gateID, short transactionID) {
+    public PCMMIDHolder(final int flowID, final int gateID, final short transactionID) {
         this.flowID = flowID;
         this.gateID = gateID;
         this.transactionID = transactionID;
-
-    }
-
-    public PCMMIDHolder() {
 
     }
 
@@ -37,24 +33,16 @@ public class PCMMIDHolder extends PCMMResource {
         return flowID;
     }
 
-    public void setFlowID(int flowID) {
-        this.flowID = flowID;
+    public void setGateID(final int gateID) {
+        this.gateID = gateID;
     }
 
     public int getGateID() {
         return gateID;
     }
 
-    public void setGateID(int gateID) {
-        this.gateID = gateID;
-    }
-
     public short getTransactionID() {
         return transactionID;
-    }
-
-    public void setTransactionID(short transactionID) {
-        this.transactionID = transactionID;
     }
 
 }

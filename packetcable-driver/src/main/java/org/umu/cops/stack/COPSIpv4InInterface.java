@@ -20,7 +20,7 @@ public class COPSIpv4InInterface extends COPSIpv4Interface {
         _objHdr.setCNum(COPSObjHeader.COPS_ININTF);
     }
 
-    public COPSIpv4InInterface(byte[] dataPtr) {
+    public COPSIpv4InInterface(final byte[] dataPtr) {
         super(dataPtr);
     }
 
@@ -48,10 +48,9 @@ public class COPSIpv4InInterface extends COPSIpv4Interface {
      * Writes data to given socket
      *
      * @param    id                  a  Socket
-     *
      * @throws   IOException
-     *
      */
-    public void writeData(Socket id) throws IOException {
+    public void writeData(final Socket id) throws IOException {
+        // TODO - Implement me
     }
 }

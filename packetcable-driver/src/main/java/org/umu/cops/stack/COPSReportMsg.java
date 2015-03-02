@@ -9,8 +9,8 @@ package org.umu.cops.stack;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.util.Enumeration;
-import java.util.Vector;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * COPS Report Message (RFC 2748 pag. 25)
@@ -50,32 +50,32 @@ import java.util.Vector;
  */
 public class COPSReportMsg extends COPSMsg {
     /* COPSHeader coming from base class */
-    private COPSHandle _clientHandle;
-    private COPSReportType _report;
-    private Vector _clientSI;
-    private COPSIntegrity _integrity;
+    private final List<COPSClientSI> _clientSI;
+    private transient COPSHandle _clientHandle;
+    private transient COPSReportType _report;
+    private transient COPSIntegrity _integrity;
 
+    /**
+     * Default Constructor
+     */
     public COPSReportMsg() {
         _clientHandle = null;
         _report = null;
         _integrity = null;
-        _clientSI = new Vector(20);
+        _clientSI = new ArrayList<>();
     }
 
     /**
-          Parse data and create COPSReportMsg object
+     * Constructor with data
+     * @param data - the data to parse
+     * @throws COPSException
      */
-    protected COPSReportMsg (byte[] data) throws COPSException {
-        _clientHandle = null;
-        _report = null;
-        _integrity = null;
-        parse(data);
+    protected COPSReportMsg (final byte[] data) throws COPSException {
+        this();
+        if (data != null) parse(data);
     }
 
-    /**
-     * Checks the sanity of COPS message and throw an
-     * COPSException when data is bad.
-     */
+    @Override
     public void checkSanity() throws COPSException {
         if ((_hdr == null) || (_clientHandle == null) || (_report == null))
             throw new COPSException("Bad message format");
@@ -83,13 +83,10 @@ public class COPSReportMsg extends COPSMsg {
 
     /**
      * Add message header
-     *
      * @param    hdr                 a  COPSHeader
-     *
      * @throws   COPSException
-     *
      */
-    public void add (COPSHeader hdr) throws COPSException {
+    public void add(final COPSHeader hdr) throws COPSException {
         if (hdr == null)
             throw new COPSException ("Null Header");
         if (hdr.getOpCode() != COPSHeader.COPS_OP_RPT)
@@ -100,13 +97,10 @@ public class COPSReportMsg extends COPSMsg {
 
     /**
      * Add Report object to the message
-     *
      * @param    report              a  COPSReportType
-     *
      * @throws   COPSException
-     *
      */
-    public void add (COPSReportType report) throws COPSException {
+    public void add(final COPSReportType report) throws COPSException {
         if (report == null)
             throw new COPSException ("Null Handle");
 
@@ -121,13 +115,10 @@ public class COPSReportMsg extends COPSMsg {
 
     /**
      * Add client handle to the message
-     *
      * @param    handle              a  COPSHandle
-     *
      * @throws   COPSException
-     *
      */
-    public void add (COPSHandle handle) throws COPSException {
+    public void add(final COPSHandle handle) throws COPSException {
         if (handle == null)
             throw new COPSException ("Null Handle");
 
@@ -142,13 +133,10 @@ public class COPSReportMsg extends COPSMsg {
 
     /**
      * Add one or more clientSI objects
-     *
      * @param    clientSI            a  COPSClientSI
-     *
      * @throws   COPSException
-     *
      */
-    public void add (COPSClientSI clientSI) throws COPSException {
+    public void add(final COPSClientSI clientSI) throws COPSException {
         if (clientSI == null)
             throw new COPSException ("Null ClientSI");
         _clientSI.add(clientSI);
@@ -157,13 +145,10 @@ public class COPSReportMsg extends COPSMsg {
 
     /**
      * Add integrity object
-     *
      * @param    integrity           a  COPSIntegrity
-     *
      * @throws   COPSException
-     *
      */
-    public void add (COPSIntegrity integrity) throws COPSException {
+    public void add(final COPSIntegrity integrity) throws COPSException {
         if (integrity == null)
             throw new COPSException ("Null Integrity");
         if (!integrity.isMessageIntegrity())
@@ -174,9 +159,7 @@ public class COPSReportMsg extends COPSMsg {
 
     /**
      * Get client Handle
-     *
      * @return   a COPSHandle
-     *
      */
     public COPSHandle getClientHandle() {
         return _clientHandle;
@@ -184,9 +167,7 @@ public class COPSReportMsg extends COPSMsg {
 
     /**
      * Get report type
-     *
      * @return   a COPSReportType
-     *
      */
     public COPSReportType getReport() {
         return _report;
@@ -194,115 +175,78 @@ public class COPSReportMsg extends COPSMsg {
 
     /**
      * Get clientSI
-     *
      * @return   a Vector
-     *
      */
-    public Vector getClientSI() {
-        return _clientSI;
+    public List<COPSClientSI> getClientSI() {
+        // Defensive Copy
+        return new ArrayList<>(_clientSI);
     }
-
-    /**
-     * Returns true if it has Integrity object
-     *
-     * @return   a boolean
-     *
-     */
-    public boolean hasIntegrity() {
-        return (_integrity != null);
-    }
-
 
     /**
      * Get Integrity. Should check hasIntegrity() before calling
-     *
      * @return   a COPSIntegrity
-     *
      */
     public COPSIntegrity getIntegrity() {
         return (_integrity);
     }
 
-    /**
-     * Writes data to given network socket
-     *
-     * @param    id                  a  Socket
-     *
-     * @throws   IOException
-     *
-     */
-    public void writeData(Socket id) throws IOException {
+    @Override
+    public void writeData(final Socket id) throws IOException {
         //checkSanity();
         if (_hdr != null) _hdr.writeData(id);
         if (_clientHandle != null) _clientHandle.writeData(id);
         if (_report != null) _report.writeData(id);
 
-        for (Enumeration e = _clientSI.elements() ; e.hasMoreElements() ;) {
-            COPSClientSI clientSI = (COPSClientSI) e.nextElement();
+        for (final COPSClientSI clientSI : _clientSI) {
             clientSI.writeData(id);
         }
 
         if (_integrity != null) _integrity.writeData(id);
     }
 
-    /**
-     * Parse data
-     *
-     * @param    data                a  byte[]
-     *
-     * @throws   COPSException
-     *
-     */
-    protected void parse(byte[] data) throws COPSException {
+    @Override
+    protected void parse(final byte[] data) throws COPSException {
         super.parseHeader(data);
 
         while (_dataStart < _dataLength) {
             byte[] buf = new byte[data.length - _dataStart];
             System.arraycopy(data,_dataStart,buf,0,data.length - _dataStart);
 
-            COPSObjHeader objHdr = new COPSObjHeader (buf);
+            final COPSObjHeader objHdr = new COPSObjHeader (buf);
             switch (objHdr.getCNum()) {
-            case COPSObjHeader.COPS_HANDLE: {
-                _clientHandle = new COPSHandle(buf);
-                _dataStart += _clientHandle.getDataLength();
-            }
-            break;
-            case COPSObjHeader.COPS_RPT: {
-                _report = new COPSReportType(buf);
-                _dataStart += _report.getDataLength();
-            }
-            break;
-            case COPSObjHeader.COPS_CSI: {
-                COPSClientSI csi = new COPSClientSI(buf);
-                _dataStart += csi.getDataLength();
-                _clientSI.add(csi);
-            }
-            break;
+                case COPSObjHeader.COPS_HANDLE: {
+                    _clientHandle = new COPSHandle(buf);
+                    _dataStart += _clientHandle.getDataLength();
+                }
+                break;
+                case COPSObjHeader.COPS_RPT: {
+                    _report = new COPSReportType(buf);
+                    _dataStart += _report.getDataLength();
+                }
+                break;
+                case COPSObjHeader.COPS_CSI: {
+                    COPSClientSI csi = new COPSClientSI(buf);
+                    _dataStart += csi.getDataLength();
+                    _clientSI.add(csi);
+                }
+                break;
 
-            case COPSObjHeader.COPS_MSG_INTEGRITY: {
-                _integrity = new COPSIntegrity(buf);
-                _dataStart += _integrity.getDataLength();
-            }
-            break;
+                case COPSObjHeader.COPS_MSG_INTEGRITY: {
+                    _integrity = new COPSIntegrity(buf);
+                    _dataStart += _integrity.getDataLength();
+                }
+                break;
 
-            default: {
-                throw new COPSException("Bad Message format, unknown object type");
-            }
+                default: {
+                    throw new COPSException("Bad Message format, unknown object type");
+                }
             }
         }
         checkSanity();
     }
 
-    /**
-     * Parse data
-     *
-     * @param    hdr                 a  COPSHeader
-     * @param    data                a  byte[]
-     *
-     * @throws   COPSException
-     *
-     */
-    protected void parse(COPSHeader hdr, byte[] data) throws COPSException {
+    @Override
+    protected void parse(final COPSHeader hdr, final byte[] data) throws COPSException {
         if (hdr.getOpCode() != COPSHeader.COPS_OP_RPT)
             throw new COPSException ("Null Header");
         _hdr = hdr;
@@ -312,17 +256,14 @@ public class COPSReportMsg extends COPSMsg {
 
     /**
      * Set the message length, base on the set of objects it contains
-     *
      * @throws   COPSException
-     *
      */
     protected void setMsgLength() throws COPSException {
         short len = 0;
         if (_clientHandle != null) len += _clientHandle.getDataLength();
         if (_report != null) len += _report.getDataLength();
 
-        for (Enumeration e = _clientSI.elements() ; e.hasMoreElements() ;) {
-            COPSClientSI clientSI = (COPSClientSI) e.nextElement();
+        for (final COPSClientSI clientSI : _clientSI) {
             len += clientSI.getDataLength();
         }
 
@@ -330,15 +271,8 @@ public class COPSReportMsg extends COPSMsg {
         _hdr.setMsgLength(len);
     }
 
-    /**
-     * Write an object textual description in the output stream
-     *
-     * @param    os                  an OutputStream
-     *
-     * @throws   IOException
-     *
-     */
-    public void dump(OutputStream os) throws IOException {
+    @Override
+    public void dump(final OutputStream os) throws IOException {
         _hdr.dump(os);
 
         if (_clientHandle != null)
@@ -347,8 +281,7 @@ public class COPSReportMsg extends COPSMsg {
         if (_report != null)
             _report.dump(os);
 
-        for (Enumeration e = _clientSI.elements() ; e.hasMoreElements() ;) {
-            COPSClientSI clientSI = (COPSClientSI) e.nextElement();
+        for (final COPSClientSI clientSI : _clientSI) {
             clientSI.dump(os);
         }
 

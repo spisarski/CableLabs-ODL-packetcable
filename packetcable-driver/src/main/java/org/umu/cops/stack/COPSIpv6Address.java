@@ -26,29 +26,23 @@ public class COPSIpv6Address {
         _addr = new byte[16];
     }
 
-    public COPSIpv6Address(String hostName) throws UnknownHostException {
+    public COPSIpv6Address(final String hostName) throws UnknownHostException {
         setIpAddress(hostName);
     }
 
     /**
      * Method setIpAddress
-     *
      * @param    hostName            a  String
-     *
      * @throws   UnknownHostException
-     *
      */
-    public void setIpAddress(String hostName) throws UnknownHostException {
+    public void setIpAddress(final String hostName) throws UnknownHostException {
         _addr = InetAddress.getByName(hostName).getAddress();
     }
 
     /**
      * Method getIpName
-     *
      * @return   a String
-     *
      * @throws   UnknownHostException
-     *
      */
     public String getIpName() throws UnknownHostException {
         return InetAddress.getByAddress(_addr).getHostName();
@@ -56,19 +50,15 @@ public class COPSIpv6Address {
 
     /**
      * Method parse
-     *
      * @param    dataPtr             a  byte[]
-     *
      */
-    public void parse(byte[] dataPtr) {
+    public void parse(final byte[] dataPtr) {
         new ByteArrayInputStream(dataPtr).read(_addr,0,16);
     }
 
     /**
      * Method getDataLength
-     *
      * @return   a short
-     *
      */
     public short getDataLength() {
         return (16);
@@ -76,13 +66,10 @@ public class COPSIpv6Address {
 
     /**
      * Write data on a given network socket
-     *
      * @param    id                  a  Socket
-     *
      * @throws   IOException
-     *
      */
-    public void writeData(Socket id) throws IOException {
+    public void writeData(final Socket id) throws IOException {
         COPSUtil.writeData(id, _addr, 16);
     }
 

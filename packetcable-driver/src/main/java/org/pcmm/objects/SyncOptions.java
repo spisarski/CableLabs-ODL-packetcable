@@ -12,9 +12,9 @@ import org.pcmm.base.impl.PCMMBaseObject;
  */
 public class SyncOptions extends PCMMBaseObject {
 
-	private byte synchType;
+	private final byte synchType;
 
-	private byte reportType;
+	private final byte reportType;
 
 	public static final byte STANDARD_REPORT_DATA = (byte) 0;
 	public static final byte COMPLETE_GATE_DATA = (byte) 1;
@@ -48,26 +48,10 @@ public class SyncOptions extends PCMMBaseObject {
 	}
 
 	/**
-	 * @param synchType
-	 *            the synchType to set
-	 */
-	public void setSynchType(byte synchType) {
-		this.synchType = synchType;
-	}
-
-	/**
 	 * @return the reportType
 	 */
 	public byte getReportType() {
 		return reportType;
-	}
-
-	/**
-	 * @param reportType
-	 *            the reportType to set
-	 */
-	public void setReportType(byte reportType) {
-		this.reportType = reportType;
 	}
 
 }

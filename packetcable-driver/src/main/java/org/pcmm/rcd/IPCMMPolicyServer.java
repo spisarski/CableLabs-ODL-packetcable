@@ -4,10 +4,10 @@
 
 package org.pcmm.rcd;
 
-import java.net.InetAddress;
-
 import org.pcmm.objects.MMVersionInfo;
 import org.pcmm.state.IStateful;
+
+import java.net.InetAddress;
 
 /**
  * <i>PKT-SP-MM-I05-091029 PacketCableTM Specification</i>
@@ -136,7 +136,7 @@ public interface IPCMMPolicyServer extends IPCMMServer, IStateful {
 	 * 
 	 * @param host
 	 *            : remote host name or ip address
-	 * @return connected socket.
+	 * @return connected _socket.
 	 */
 	IPSCMTSClient requestCMTSConnection(String host);
 
@@ -145,7 +145,7 @@ public interface IPCMMPolicyServer extends IPCMMServer, IStateful {
 	 * 
 	 * @param host
 	 *            : remote ip address‚
-	 * @return connected socket.
+	 * @return connected _socket.
 	 */
 	IPSCMTSClient requestCMTSConnection(InetAddress host);
 
@@ -180,36 +180,35 @@ public interface IPCMMPolicyServer extends IPCMMServer, IStateful {
 		/**
 		 * initiates a Gate-Set with the CMTS
 		 * 
-		 * @return
+		 * @return - t/f
 		 */
 		boolean gateSet();
 
 		/**
 		 * initiates a Gate-Info with the CMTS
-		 * 
-		 * @return
+		 *
+         * @return - t/f
 		 */
 		boolean gateInfo();
 
 		/**
 		 * initiates a Gate-Delete with the CMTS
-		 * 
-		 * @return
+		 *
+         * @return - t/f
 		 */
 		boolean gateDelete();
 
 		/**
 		 * sends synch request
-		 * 
-		 * @return
+		 *
+         * @return - t/f
 		 */
 		boolean gateSynchronize();
 
 		/**
 		 * Sets the value of the multi-media version info.
 		 * 
-		 * @param MM
-		 *            version info
+		 * @param vInfo version info
 		 */
 		void setVersionInfo(MMVersionInfo vInfo);
 

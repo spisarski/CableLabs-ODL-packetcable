@@ -14,7 +14,7 @@ package org.umu.cops.stack;
  */
 public class COPSException extends Exception {
 
-    private int rc;
+    private final int rc;
     final static int GENERAL_ERROR = 0x00000001;
 
     public COPSException(String s) {
@@ -22,7 +22,7 @@ public class COPSException extends Exception {
         rc=0;
     }
 
-    public COPSException(String msg, int retCode) {
+    public COPSException(final String msg, final int retCode) {
         super(msg);
         rc = retCode;
     }

@@ -16,30 +16,26 @@ import java.net.Socket;
  *
  */
 public class COPSIpv6InInterface extends COPSIpv6Interface {
+
     public COPSIpv6InInterface() {
-        _objHdr = new COPSObjHeader();
+        this((COPSIpv6Address)null);
+    }
+    public COPSIpv6InInterface(final COPSIpv6Address addr) {
+        super(addr);
         _objHdr.setCNum(COPSObjHeader.COPS_ININTF);
     }
 
-    public COPSIpv6InInterface(byte[] dataPtr) {
-        super(dataPtr);
+    public COPSIpv6InInterface(final byte[] dataPtr) {
+        super(null, dataPtr);
     }
 
-    /**
-     * Method className
-     *
-     * @return   a String
-     *
-     */
-    public String className() {
-        return "COPSIpv6InInterface";
+    public COPSIpv6InInterface(final COPSIpv6Address addr, final byte[] dataPtr) {
+        super(addr, dataPtr);
     }
 
     /**
      * Method isInInterface
-     *
      * @return   a boolean
-     *
      */
     public boolean isInInterface() {
         return true;
@@ -49,11 +45,9 @@ public class COPSIpv6InInterface extends COPSIpv6Interface {
      * Writes data to given socket
      *
      * @param    id                  a  Socket
-     *
      * @throws   IOException
-     *
      */
-    public void writeData(Socket id) throws IOException {
+    public void writeData(final Socket id) throws IOException {
     }
 }
 

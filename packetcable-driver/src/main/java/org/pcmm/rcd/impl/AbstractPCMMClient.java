@@ -3,30 +3,32 @@
  */
 package org.pcmm.rcd.impl;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.Socket;
-import java.net.UnknownHostException;
-
 import org.pcmm.nio.PCMMChannel;
-// import org.junit.Assert;
 import org.pcmm.objects.MMVersionInfo;
 import org.pcmm.rcd.IPCMMClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.umu.cops.stack.COPSMsg;
 
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.net.UnknownHostException;
+
+// import org.junit.Assert;
+
 /**
  * 
  * default implementation for {@link IPCMMClient}
  * 
- * 
+ * TODO - Should make this class as immutable as possible especially for the member "socket" which can cause NPEs.
  */
 public class AbstractPCMMClient implements IPCMMClient {
 
-	protected Logger logger = LoggerFactory.getLogger(AbstractPCMMClient.class);
+	private final static Logger logger = LoggerFactory.getLogger(AbstractPCMMClient.class);
+
 	/**
-	 * socket used to communicated with server.
+	 * _socket used to communicated with server.
 	 */
 	private Socket socket;
 
@@ -44,7 +46,8 @@ public class AbstractPCMMClient implements IPCMMClient {
 	 * 
 	 * @see pcmm.rcd.IPCMMClient#sendRequest(pcmm.messages.IMessage)
 	 */
-	public void sendRequest(COPSMsg requestMessage) {
+	public void sendRequest(final COPSMsg requestMessage) {
+        logger.info("Sending request");
 		try {
 			channel.sendMsg(requestMessage);
 		} catch (Exception e) {
@@ -58,10 +61,9 @@ public class AbstractPCMMClient implements IPCMMClient {
 	 * @see org.pcmm.rcd.IPCMMClient#readMessage()
 	 */
 	public COPSMsg readMessage() {
+        logger.info("Reading message");
 		try {
-			COPSMsg recvdMsg = channel.receiveMessage();
-			// logger.debug("received message : " + recvdMsg.getHeader());
-			return recvdMsg;
+			return channel.receiveMessage();
 		} catch (Exception e) {
 			logger.error(e.getMessage(), getSocket());
 		}
@@ -73,9 +75,10 @@ public class AbstractPCMMClient implements IPCMMClient {
 	 * 
 	 * @see pcmm.rcd.IPCMMClient#tryConnect(java.lang.String, int)
 	 */
-	public boolean tryConnect(String address, int port) {
+	public boolean tryConnect(final String address, final int port) {
+        logger.info("Attempting to connect to " + address + ':' + port);
 		try {
-			InetAddress addr = InetAddress.getByName(address);
+			final InetAddress addr = InetAddress.getByName(address);
 			tryConnect(addr, port);
 		} catch (UnknownHostException e) {
 			logger.error(e.getMessage());
@@ -89,7 +92,10 @@ public class AbstractPCMMClient implements IPCMMClient {
 	 * 
 	 * @see pcmm.rcd.IPCMMClient#tryConnect(java.net.InetAddress, int)
 	 */
-	public boolean tryConnect(InetAddress address, int port) {
+	public boolean tryConnect(final InetAddress address, final int port) {
+        logger.info("Attempting to connect to " + address + ':' + port);
+
+        // TODO - This does not appear to be connecting to anything. See overloaded method above
 		try {
 			setSocket(new Socket(address, port));
 		} catch (IOException e) {
@@ -105,6 +111,7 @@ public class AbstractPCMMClient implements IPCMMClient {
 	 * @see pcmm.rcd.IPCMMClient#disconnect()
 	 */
 	public boolean disconnect() {
+        logger.info("Disconnecting");
 		if (isConnected()) {
 			try {
 				socket.close();
@@ -117,19 +124,15 @@ public class AbstractPCMMClient implements IPCMMClient {
 	}
 
 	/**
-	 * @return the socket
+	 * @return the _socket
 	 */
 	public Socket getSocket() {
 		return socket;
 	}
 
-	public PCMMChannel getChannel() {
-		return channel;
-	}
-
 	/**
 	 * @param socket
-	 *            the socket to set
+	 *            the _socket to set
 	 */
 	public void setSocket(Socket socket) {
 		this.socket = socket;

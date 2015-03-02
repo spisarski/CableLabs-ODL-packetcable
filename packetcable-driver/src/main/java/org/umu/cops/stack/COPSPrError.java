@@ -17,8 +17,8 @@ import java.net.Socket;
  */
 public class COPSPrError extends COPSPrObjBase {
 
-    protected short _errCode;
-    protected short _errSubCode;
+    protected final short _errCode;
+    protected final short _errSubCode;
 
     public COPSPrError(short eCode, short eSubCode) {
         _errCode = eCode;
@@ -38,49 +38,36 @@ public class COPSPrError extends COPSPrObjBase {
         _sNum |= ((short) dataPtr[2]) << 8;
         _sNum |= ((short) dataPtr[3]) & 0xFF;
 
-        _errCode |= ((short) dataPtr[4]) << 8;
-        _errCode |= ((short) dataPtr[5]) & 0xFF;
+        short tmpErrCode = (short)0;
+        tmpErrCode |= ((short) dataPtr[4]) << 8;
+        tmpErrCode |= ((short) dataPtr[5]) & 0xFF;
+        _errCode = tmpErrCode;
 
-        _errSubCode |= ((short) dataPtr[6]) << 8;
-        _errSubCode |= ((short) dataPtr[7]) & 0xFF;
-    }
-
-    /**
-     * Method strError
-     *
-     * @return   a String
-     *
-     */
-    public String strError() {
-        return "Error";
+        short tmpErrSubCode = (short)0;
+        tmpErrSubCode |= ((short) dataPtr[6]) << 8;
+        tmpErrSubCode |= ((short) dataPtr[7]) & 0xFF;
+        _errSubCode = tmpErrSubCode;
     }
 
     /**
      * Method setData
-     *
      * @param    data                a  COPSData
-     *
      */
-    public void setData(COPSData data) { }     ;
+    public void setData(final COPSData data) { }
 
     /**
      * Write data on a given network socket
-     *
      * @param    id                  a  Socket
-     *
      * @throws   IOException
-     *
      */
-    public void writeData(Socket id) throws IOException {
-        byte[] dataRep = getDataRep();
+    public void writeData(final Socket id) throws IOException {
+        final byte[] dataRep = getDataRep();
         COPSUtil.writeData(id, dataRep, dataRep.length);
     }
 
     /**
      * Returns size in number of octects, including header
-     *
      * @return   a short
-     *
      */
     public short getDataLength() {
         return 8;
@@ -88,9 +75,7 @@ public class COPSPrError extends COPSPrObjBase {
 
     /**
      * Method getDataRep
-     *
      * @return   a byte[]
-     *
      */
     public byte[] getDataRep() {
         _dataRep = new byte[getDataLength()];
@@ -98,7 +83,7 @@ public class COPSPrError extends COPSPrObjBase {
         _dataRep[0] = (byte) (_len >> 8);
         _dataRep[1] = (byte) _len;
         _dataRep[2] = (byte) (_sNum >> 8);
-        _dataRep[3] = (byte) _sNum;
+        _dataRep[3] = _sNum;
         _dataRep[4] = (byte) (_errCode >> 8);
         _dataRep[5] = (byte) _errCode;
         _dataRep[6] = (byte) (_errSubCode >> 8);

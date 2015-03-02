@@ -17,7 +17,7 @@ public class PCMMResourceSet {
     private static PCMMResourceSet instance;
 
     private PCMMResourceSet() {
-        mapper = new HashMap<Object, PCMMResourcesMapper<?, ?>>();
+        mapper = new HashMap<>();
     }
 
     public static PCMMResourceSet getInstance() {

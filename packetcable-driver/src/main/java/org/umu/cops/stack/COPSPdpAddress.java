@@ -12,6 +12,8 @@ import java.io.OutputStream;
 /**
  * COPS PDP Address
  *
+ * TODO - this should really be an interface as with the super
+ *
  * @version COPSPdpAddress.java, v 1.00 2003
  *
  */
@@ -25,7 +27,7 @@ abstract public class COPSPdpAddress extends COPSObjBase {
      */
     public boolean isPdpAddress() {
         return true;
-    };
+    }
 
     /**
      * Method isIpv4PdpAddress
@@ -35,7 +37,7 @@ abstract public class COPSPdpAddress extends COPSObjBase {
      */
     public boolean isIpv4PdpAddress() {
         return false;
-    };
+    }
 
     /**
      * Method isIpv6PdpAddress
@@ -45,7 +47,7 @@ abstract public class COPSPdpAddress extends COPSObjBase {
      */
     public boolean isIpv6PdpAddress() {
         return false;
-    };
+    }
 
     /**
      * Method isLastPdpAddress
@@ -55,7 +57,7 @@ abstract public class COPSPdpAddress extends COPSObjBase {
      */
     public boolean isLastPdpAddress() {
         return false;
-    };
+    }
 
     /**
      * Method isPdpredirectAddress
@@ -65,7 +67,7 @@ abstract public class COPSPdpAddress extends COPSObjBase {
      */
     public boolean isPdpredirectAddress() {
         return false;
-    };
+    }
 
     /**
      * Write an object textual description in the output stream
@@ -76,5 +78,5 @@ abstract public class COPSPdpAddress extends COPSObjBase {
      *
      */
     abstract public void dump(OutputStream os) throws IOException;
-};
+}
 

@@ -3,18 +3,22 @@
  */
 package org.pcmm.gates.impl;
 
-import java.util.Arrays;
-
-// import org.junit.Assert;
 import org.pcmm.base.impl.PCMMBaseObject;
 import org.pcmm.gates.ITrafficProfile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.umu.cops.stack.COPSData;
+
+import java.util.Arrays;
 
 /**
  *
  */
 public class BestEffortService extends PCMMBaseObject implements
 		ITrafficProfile {
+
+    private final static Logger logger = LoggerFactory.getLogger(BestEffortService.class);
+
 	public static final byte STYPE = 3;
 	// XXX -> 60=0x3C, 112 = 0x70, 164=0xA4
 	// Length = 44=0x2C, 80=0x50 or 116=0x74
@@ -39,6 +43,9 @@ public class BestEffortService extends PCMMBaseObject implements
 	 */
 	public BestEffortService(byte e) {
 		super((short) (e == 1 ? LENGTH : (e == 7 ? 116 : 80)), STYPE, SNUM);
+
+        logger.info("Constructing new BestEffortService with byte - " + e);
+
 		setEnvelop(e);
 		authorizedEnvelop = new BEEnvelop();
 		if (e > 1) {
@@ -50,7 +57,10 @@ public class BestEffortService extends PCMMBaseObject implements
 
 	public BestEffortService(byte[] bytes) {
 		super(bytes);
-		byte e = getEnvelop();
+
+        logger.info("Constructing new BestEffortService with bytes - " + Arrays.toString(bytes));
+
+        byte e = getEnvelop();
 		authorizedEnvelop = new BEEnvelop(headPadding(offset, Arrays.copyOfRange(bytes, 8, LENGTH)));
 		if (e > 1) {
 			reservedEnvelop = new BEEnvelop(headPadding(offset, Arrays.copyOfRange(bytes, LENGTH, 80)));
@@ -61,7 +71,9 @@ public class BestEffortService extends PCMMBaseObject implements
 
 	@Override
 	public void setEnvelop(byte e) {
-		setLength((short) (e == 1 ? LENGTH : (e == 7 ? 116 : 80)));
+        logger.info("Setting envelope with byte - " + e);
+
+        setLength((short) (e == 1 ? LENGTH : (e == 7 ? 116 : 80)));
 		// reset cops data to fit the new length
 		byte[] array = new byte[getLength() - offset];
 		Arrays.fill(array, (byte) 0);
@@ -71,6 +83,7 @@ public class BestEffortService extends PCMMBaseObject implements
 
 	@Override
 	public byte getEnvelop() {
+        // TODO - is 0 really supposed be the return value every time???
 		return getByte((short) 0);
 	}
 

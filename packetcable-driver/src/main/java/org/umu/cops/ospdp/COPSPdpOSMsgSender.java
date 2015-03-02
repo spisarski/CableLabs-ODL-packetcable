@@ -1,149 +1,108 @@
 package org.umu.cops.ospdp;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.umu.cops.prpep.COPSMsgSender;
+import org.umu.cops.stack.*;
+
 import java.io.IOException;
 import java.net.Socket;
-import java.util.Enumeration;
-import java.util.Vector;
-
-import org.umu.cops.stack.COPSContext;
-import org.umu.cops.stack.COPSDecision;
-import org.umu.cops.stack.COPSDecisionMsg;
-import org.umu.cops.stack.COPSException;
-import org.umu.cops.stack.COPSHandle;
-import org.umu.cops.stack.COPSHeader;
-import org.umu.cops.stack.COPSSyncStateMsg;
+import java.util.List;
 
 /**
  * COPS message transceiver class for outsourcing connections at the PDP side.
  */
-public class COPSPdpOSMsgSender {
-    /**
-     * Socket connected to PEP
-     */
-    protected Socket _sock;
+public class COPSPdpOSMsgSender extends COPSMsgSender {
 
-    /**
-     * COPS client-type that identifies the policy client
-     */
-    protected short _clientType;
-
-    /**
-     * COPS client handle used to uniquely identify a particular
-     * PEP's request for a client-type
-     */
-    protected COPSHandle _handle;
+    private static final Logger logger = LoggerFactory.getLogger(COPSPdpOSMsgSender.class);
 
     /**
      * Creates a COPSPepMsgSender
      *
-     * @param clientType        COPS client-type
-     * @param clientHandle      Client handle
-     * @param sock              Socket to the PEP
+     * @param clientType   COPS client-type
+     * @param clientHandle Client handle
+     * @param sock         Socket to the PEP
      */
-    public COPSPdpOSMsgSender (short clientType, COPSHandle clientHandle, Socket sock) {
-        // COPS Handle
-        _handle = clientHandle;
-        _clientType = clientType;
-
-        _sock = sock;
-    }
-
-    /**
-     * Gets the client handle
-     * @return   Client's <tt>COPSHandle</tt>
-     */
-    public COPSHandle getClientHandle() {
-        return _handle;
-    }
-
-    /**
-     * Gets the client-type
-     * @return   Client-type value
-     */
-    public short getClientType() {
-        return _clientType;
+    public COPSPdpOSMsgSender(final short clientType, final COPSHandle clientHandle, final Socket sock) {
+        super(clientType, clientHandle, sock);
     }
 
     /**
      * Sends a decision message which was requested by the PEP
-     * @param removeDecs    Decisions to be removed
-     * @param installDecs   Decisions to be installed
+     *
+     * @param removeDecs  Decisions to be removed
+     * @param installDecs Decisions to be installed
      * @throws COPSPdpException
      */
-    public void sendSolicitedDecision(Vector removeDecs, Vector installDecs) throws COPSPdpException {
+    public void sendSolicitedDecision(final List<COPSDecision> removeDecs, final List<COPSDecision> installDecs)
+            throws COPSPdpException {
         sendDecision(removeDecs, installDecs, true);
     }
 
     /**
      * Sends a decision message which was not requested by the PEP
-     * @param removeDecs    Decisions to be removed
-     * @param installDecs   Decisions to be installed
+     *
+     * @param removeDecs  Decisions to be removed
+     * @param installDecs Decisions to be installed
      * @throws COPSPdpException
      */
-    public void sendUnsolicitedDecision(Vector removeDecs, Vector installDecs) throws COPSPdpException {
+    public void sendUnsolicitedDecision(final List<COPSDecision> removeDecs, final List<COPSDecision> installDecs)
+            throws COPSPdpException {
+        logger.info("Sending unsolicited decision");
         sendDecision(removeDecs, installDecs, false);
     }
 
     /**
      * Sends a decision message to the PEP
-     * @param removeDecs    Decisions to be removed
-     * @param installDecs   Decisions to be installed
-     * @param solicited     <tt>true</tt> if the PEP requested this decision, <tt>false</tt> otherwise
+     *
+     * @param removeDecs  Decisions to be removed
+     * @param installDecs Decisions to be installed
+     * @param solicited   <tt>true</tt> if the PEP requested this decision, <tt>false</tt> otherwise
      * @throws COPSPdpException
      */
-    public void sendDecision(Vector removeDecs, Vector installDecs, boolean solicited) throws COPSPdpException {
+    public void sendDecision(final List<COPSDecision> removeDecs, final List<COPSDecision> installDecs,
+                             boolean solicited) throws COPSPdpException {
+        logger.info("Sending decision");
         // Common Header holding the same ClientType as the request
-        COPSHeader hdr = new COPSHeader (COPSHeader.COPS_OP_DEC, getClientType());
+        final COPSHeader hdr = new COPSHeader(COPSHeader.COPS_OP_DEC, getClientType());
 
-        if (solicited)
+        if (solicited) {
             hdr.setFlag(COPSHeader.COPS_FLAG_SOLICITED);
+        }
 
         // Client Handle with the same clientHandle as the request
-        COPSHandle handle = new COPSHandle();
-        handle.setId(getClientHandle().getId());
-
-        COPSDecisionMsg decisionMsg = new COPSDecisionMsg();
+        final COPSHandle handle = new COPSHandle(getClientHandle().getId());
+        final COPSDecisionMsg decisionMsg = new COPSDecisionMsg();
         try {
             decisionMsg.add(hdr);
             decisionMsg.add(handle);
 
             // Decisions (no flags supplied)
             //  <Context>
-            COPSContext cntxt = new COPSContext(COPSContext.CONFIG, (short) 0);
+            final COPSContext cntxt = new COPSContext(COPSContext.CONFIG, (short) 0);
 
             // Remove Decisions
             //  <Decision: Flags>
             if (removeDecs.size() > 0) {
-                COPSDecision rdec1 = new COPSDecision();
+                final COPSDecision rdec1 = new COPSDecision();
                 rdec1.setCmdCode(COPSDecision.DEC_REMOVE);
-
                 decisionMsg.addDecision(rdec1, cntxt);
-
-                Enumeration removeDecsEnum = removeDecs.elements();
-                while (removeDecsEnum.hasMoreElements())
-                    decisionMsg.addDecision((COPSDecision) removeDecsEnum.nextElement(), cntxt);
+                for (final COPSDecision decision : removeDecs) {
+                    decisionMsg.addDecision(decision, cntxt);
+                }
             }
 
             // Install Decisions
             //  <Decision: Flags>
             if (installDecs.size() > 0) {
-                COPSDecision idec1 = new COPSDecision();
+                final COPSDecision idec1 = new COPSDecision();
                 idec1.setCmdCode(COPSDecision.DEC_INSTALL);
-
                 decisionMsg.addDecision(idec1, cntxt);
-
-                Enumeration installDecsEnum = installDecs.elements();
-                while (installDecsEnum.hasMoreElements())
-                    decisionMsg.addDecision((COPSDecision) installDecsEnum.nextElement(), cntxt);
-                /**
-                COPSIntegrity intr = new COPSIntegrity();
-                intr.setKeyId(19);
-                intr.setSeqNum(9);
-                intr.setKeyDigest(new COPSData("KEY DIGEST"));
-                decisionMsg.add(intr);
-                /**/
+                for (final COPSDecision decision : installDecs) {
+                    decisionMsg.addDecision(decision, cntxt);
+                }
             }
-        } catch (COPSException e) {
+        } catch (final COPSException e) {
             e.printStackTrace();
             throw new COPSPdpException("Error making Msg");
         }
@@ -152,16 +111,39 @@ public class COPSPdpOSMsgSender {
         //**
         try {
             decisionMsg.writeData(_sock);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new COPSPdpException("Failed to send the decision, reason: " + e.getMessage());
         }
     }
 
-    /**FIXME: unused?
+    /**
+     * FIXME: unused?
      * Sends a message asking that the request state be deleted
-     * @throws   COPSPdpException
+     *
+     * @throws COPSPdpException
      */
     public void sendDeleteRequestState() throws COPSPdpException {
+        logger.info("Sending delete request state");
+        sendRequestState(COPSDecision.DEC_REMOVE);
+    }
+
+    /**
+     * Method sendOpenNewRequestState
+     *
+     * @throws COPSPdpException
+     */
+    //FIXME: Unused?
+    public void sendOpenNewRequestState() throws COPSPdpException {
+        logger.info("Sending open new request state");
+        sendRequestState(COPSDecision.DEC_INSTALL);
+    }
+
+    /**
+     * Sends the COPS request state
+     * @param decision - the decision code
+     * @throws COPSPdpException
+     */
+    private void sendRequestState(final byte decision) throws COPSPdpException {
         /* <Decision Message> ::= <Common Header: Flag UNSOLICITED>
          *                          <Client Handle>
          *                          *(<Decision>)
@@ -173,70 +155,19 @@ public class COPSPdpOSMsgSender {
         */
 
         // Common Header with the same ClientType as the request (default UNSOLICITED)
-        COPSHeader hdr = new COPSHeader (COPSHeader.COPS_OP_DEC, getClientType());
+        final COPSHeader hdr = new COPSHeader(COPSHeader.COPS_OP_DEC, getClientType());
 
         // Client Handle with the same clientHandle as the request
-        COPSHandle clienthandle = new COPSHandle();
-        clienthandle.setId(_handle.getId());
-
+        final COPSHandle clienthandle = new COPSHandle(_handle.getId());
         // Decisions
         //  <Context>
-        COPSContext cntxt = new COPSContext(COPSContext.CONFIG, (short) 0);
+        final COPSContext cntxt = new COPSContext(COPSContext.CONFIG, (short) 0);
         //  <Decision: Flags>
-        COPSDecision dec = new COPSDecision();
-        dec.setCmdCode(COPSDecision.DEC_REMOVE);
+        final COPSDecision dec = new COPSDecision();
+        dec.setCmdCode(decision);
         dec.setFlags(COPSDecision.F_REQSTATE);
 
-        COPSDecisionMsg decisionMsg = new COPSDecisionMsg();
-        try {
-            decisionMsg.add(hdr);
-            decisionMsg.add(clienthandle);
-            decisionMsg.addDecision(dec, cntxt);
-        } catch (COPSException e) {
-            throw new COPSPdpException("Error making Msg");
-        }
-
-        try {
-            decisionMsg.writeData(_sock);
-        } catch (IOException e) {
-            throw new COPSPdpException("Failed to send the open new request state, reason: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Method sendOpenNewRequestState
-     *
-     * @throws   COPSPdpException
-     *
-     */
-    //FIXME: Unused?
-    public void sendOpenNewRequestState() throws COPSPdpException {
-        /* <Decision Message> ::= <Common Header: Flag UNSOLICITED>
-         *                          <Client Handle>
-         *                          *(<Decision>)
-         *                          [<Integrity>]
-         * <Decision> ::= <Context>
-         *                  <Decision: Flags>
-         * <Decision: Flags> ::= Install Request-State
-         *
-        */
-
-        // Common Header with the same ClientType as the request (default UNSOLICITED)
-        COPSHeader hdr = new COPSHeader (COPSHeader.COPS_OP_DEC, getClientType());
-
-        // Client Handle with the same clientHandle as the request
-        COPSHandle clienthandle = new COPSHandle();
-        clienthandle.setId(_handle.getId());
-
-        // Decisions
-        //  <Context>
-        COPSContext cntxt = new COPSContext(COPSContext.CONFIG, (short) 0);
-        //  <Decision: Flags>
-        COPSDecision dec = new COPSDecision();
-        dec.setCmdCode(COPSDecision.DEC_INSTALL);
-        dec.setFlags(COPSDecision.F_REQSTATE);
-
-        COPSDecisionMsg decisionMsg = new COPSDecisionMsg();
+        final COPSDecisionMsg decisionMsg = new COPSDecisionMsg();
         try {
             decisionMsg.add(hdr);
             decisionMsg.add(clienthandle);
@@ -256,21 +187,19 @@ public class COPSPdpOSMsgSender {
      * Sends a message asking for a COPS sync operation
      * @throws COPSPdpException
      */
-    public void sendSyncRequestState()
-    throws COPSPdpException {
+    public void sendSyncRequestState() throws COPSPdpException {
+        logger.info("Sending sync request state");
         /* <Synchronize State Request>  ::= <Common Header>
          *                                  [<Client Handle>]
          *                                  [<Integrity>]
          */
 
         // Common Header with the same ClientType as the request
-        COPSHeader hdr = new COPSHeader (COPSHeader.COPS_OP_SSQ, getClientType());
+        final COPSHeader hdr = new COPSHeader(COPSHeader.COPS_OP_SSQ, getClientType());
 
         // Client Handle with the same clientHandle as the request
-        COPSHandle clienthandle = new COPSHandle();
-        clienthandle.setId(_handle.getId());
-
-        COPSSyncStateMsg msg = new COPSSyncStateMsg();
+        final COPSHandle clienthandle = new COPSHandle(_handle.getId());
+        final COPSSyncStateMsg msg = new COPSSyncStateMsg();
         try {
             msg.add(hdr);
             msg.add(clienthandle);

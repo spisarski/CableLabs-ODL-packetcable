@@ -40,41 +40,40 @@ import java.net.Socket;
  */
 public class COPSHandle extends COPSObjBase {
 
-    private COPSObjHeader _objHdr;
-    private COPSData _id;
-    private COPSData _padding;
+    private final COPSObjHeader _objHdr;
+    private final COPSData _id;
+    private transient COPSData _padding;
 
-    public COPSHandle() {
+    public COPSHandle(final COPSData id) {
         _objHdr = new COPSObjHeader();
         _objHdr.setCNum(COPSObjHeader.COPS_HANDLE);
         _objHdr.setCType((byte) 1);
         _padding = new COPSData();
+        _id = id;
+        processId(id);
     }
 
     /**
           Parse data and create COPSHandle object
      */
-    protected COPSHandle(byte[] dataPtr) {
+    protected COPSHandle(final byte[] dataPtr) {
         _objHdr = new COPSObjHeader();
         _objHdr.parse(dataPtr);
         // _objHdr.checkDataLength();
 
         //Get the length of data following the obj header
-        int dLen = _objHdr.getDataLength() - 4;
-        COPSData d = new COPSData (dataPtr, 4, dLen);
-        setId(d);
+        final int dLen = _objHdr.getDataLength() - 4;
+        _id = new COPSData (dataPtr, 4, dLen);
+        processId(_id);
     }
 
     /**
      * Set handle value
-     *
      * @param    id                  a  COPSData
-     *
      */
-    public void setId(COPSData id) {
-        _id = id;
+    private void processId(final COPSData id) {
         if ((id.length() % 4) != 0) {
-            int padLen = 4 - (_id.length() % 4);
+            final int padLen = 4 - (_id.length() % 4);
             _padding = getPadding(padLen);
         }
         _objHdr.setDataLength((short) _id.length());
@@ -82,9 +81,7 @@ public class COPSHandle extends COPSObjBase {
 
     /**
      * Returns size in number of octects, including header
-     *
      * @return   a short
-     *
      */
     public short getDataLength() {
         //Add the size of the header also
@@ -95,33 +92,19 @@ public class COPSHandle extends COPSObjBase {
 
     /**
      * Get handle value
-     *
      * @return   a COPSData
-     *
      */
     public COPSData getId() {
         return _id;
     }
 
-    /**
-     * Always return true
-     *
-     * @return   a boolean
-     *
-     */
+    @Override
     public boolean isClientHandle() {
         return true;
     }
 
-    /**
-     * Write data in network byte order on a given network socket
-     *
-     * @param    id                  a  Socket
-     *
-     * @throws   IOException
-     *
-     */
-    public void writeData(Socket id) throws IOException {
+    @Override
+    public void writeData(final Socket id) throws IOException {
         _objHdr.writeData(id);
 
         COPSUtil.writeData(id, _id.getData(), _id.length());
@@ -132,15 +115,32 @@ public class COPSHandle extends COPSObjBase {
 
     /**
      * Write an object textual description in the output stream
-     *
      * @param    os                  an OutputStream
-     *
      * @throws   IOException
-     *
      */
-    public void dump(OutputStream os) throws IOException {
+    public void dump(final OutputStream os) throws IOException {
         _objHdr.dump(os);
-        os.write(new String("client-handle: " + _id.str() + "\n").getBytes());
+        os.write(("client-handle: " + _id.str() + "\n").getBytes());
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof COPSHandle)) {
+            return false;
+        }
+        final COPSHandle that = (COPSHandle) o;
+        return _id.equals(that._id) && _objHdr.equals(that._objHdr);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = _objHdr.hashCode();
+        result = 31 * result + _id.hashCode();
+        return result;
+    }
+
 }
 

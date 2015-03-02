@@ -20,35 +20,29 @@ import java.net.UnknownHostException;
  */
 public class COPSIpv4Address {
 
-    private byte[] _addr;
+    private transient byte[] _addr;
 
     public COPSIpv4Address() {
         _addr = new byte[4];
     }
 
-    public COPSIpv4Address(String hostName) throws UnknownHostException {
+    public COPSIpv4Address(final String hostName) throws UnknownHostException {
         setIpAddress(hostName);
     }
 
     /**
      * Method setIpAddress
-     *
      * @param    hostName            a  String
-     *
      * @throws   UnknownHostException
-     *
      */
-    public void setIpAddress(String hostName) throws UnknownHostException {
+    public void setIpAddress(final String hostName) throws UnknownHostException {
         _addr = InetAddress.getByName(hostName).getAddress();
     }
 
     /**
      * Method getIpName
-     *
      * @return   a String
-     *
      * @throws   UnknownHostException
-     *
      */
     public String getIpName() throws UnknownHostException {
         return InetAddress.getByAddress(_addr).getHostName();
@@ -56,9 +50,7 @@ public class COPSIpv4Address {
 
     /**
      * Method getIpAddress
-     *
      * @return   an int
-     *
      */
     public int getIpAddress() {
         int ipaddr = 0;
@@ -73,33 +65,26 @@ public class COPSIpv4Address {
 
     /**
      * Method parse
-     *
      * @param    dataPtr             a  byte[]
-     *
      */
-    public void parse(byte[] dataPtr) {
+    public void parse(final byte[] dataPtr) {
         new ByteArrayInputStream(dataPtr).read(_addr,0,4);
     }
 
     /**
      * Method getDataLength
-     *
      * @return   a short
-     *
      */
     public short getDataLength() {
         return (4);
     }
 
     /**
-     * Write data on a given network socket
-     *
+     * Write data on a given network _socket
      * @param    id                  a  Socket
-     *
      * @throws   IOException
-     *
      */
-    public void writeData(Socket id) throws IOException {
+    public void writeData(final Socket id) throws IOException {
         COPSUtil.writeData(id, _addr, 4);
     }
 

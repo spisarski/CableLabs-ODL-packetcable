@@ -35,11 +35,11 @@ public class COPSObjHeader extends COPSObjBase {
     public final static byte COPS_ACCT_TIMER = 15;
     public final static byte COPS_MSG_INTEGRITY = 16;
 
-    private short _len;
-    private byte _cNum;
-    private byte _cType;
+    private transient short _len;
+    private transient byte _cNum;
+    private transient byte _cType;
 
-    public COPSObjHeader(byte cNum, byte cType) {
+    public COPSObjHeader(final byte cNum, final byte cType) {
         _len = 4;
         _cNum = cNum;
         _cType = cType;
@@ -51,45 +51,37 @@ public class COPSObjHeader extends COPSObjBase {
         _cType = 0;
     }
 
-    protected COPSObjHeader(byte[] data) {
+    protected COPSObjHeader(final byte[] data) {
         parse(data);
     }
 
     /**
      * Get the data length in number of octets
-     *
      * @return   a short
-     *
      */
     public short getDataLength() {
         return _len;
-    };
+    }
 
     /**
      * Get the class information identifier cNum
-     *
      * @return   a byte
-     *
      */
     public byte getCNum() {
         return _cNum;
-    };
+    }
 
     /**
      * Get the type per cNum
-     *
      * @return   a byte
-     *
      */
     public byte getCType() {
         return _cType;
-    };
+    }
 
     /**
      * Get stringified CNum
-     *
      * @return   a String
-     *
      */
     public String getStrCNum() {
         switch (getCNum()) {
@@ -134,71 +126,58 @@ public class COPSObjHeader extends COPSObjBase {
      * Set the obj length, the length is the length of the data following
      * the object header.The length of the object header (4 bytes) is added
      * to the length passed.
-     *
      * @param    len                 a  short
-     *
      */
-    public void setDataLength(short len) {
+    public void setDataLength(final short len) {
         //Add the length of the header also
         _len = (short) (len + 4);
     }
 
     /**
      * Set the class of information cNum
-     *
      * @param    cNum                a  byte
-     *
      */
-    public void setCNum(byte cNum) {
+    public void setCNum(final byte cNum) {
         _cNum = cNum;
-    } ;
+    }
 
     /**
      * Set the  type defined per cNum
-     *
      * @param    cType               a  byte
-     *
      */
-    public void setCType(byte cType) {
+    public void setCType(final byte cType) {
         _cType = cType;
-    } ;
+    }
 
     /**
      * Method checkDataLength
-     *
      * @throws   COPSException
-     *
      */
     public void checkDataLength() throws COPSException {
 
     }
 
     /**
-     * Writes data to a given network socket
-     *
+     * Writes data to a given network _socket
      * @param    id                  a  Socket
-     *
      * @throws   IOException
-     *
      */
-    public void writeData(Socket id) throws IOException {
-        byte[] buf = new byte[4];
+    public void writeData(final Socket id) throws IOException {
+        final byte[] buf = new byte[4];
 
         buf[0] = (byte) (_len >> 8);
         buf[1] = (byte) _len;
-        buf[2] = (byte) _cNum;
-        buf[3] = (byte) _cType;
+        buf[2] = _cNum;
+        buf[3] = _cType;
 
         COPSUtil.writeData(id, buf, 4);
     }
 
     /**
      * Method parse
-     *
      * @param    data                a  byte[]
-     *
      */
-    public void parse(byte[] data) {
+    public void parse(final byte[] data) {
         _len = 0;
         _len |= ((short) data[0]) << 8;
         _len |= ((short) data[1]) & 0xFF;
@@ -208,18 +187,34 @@ public class COPSObjHeader extends COPSObjBase {
 
     /**
      * Write an object textual description in the output stream
-     *
      * @param    os                  an OutputStream
-     *
      * @throws   IOException
-     *
      */
-    public void dump(OutputStream os) throws IOException {
-        os.write(new String("**" + getStrCNum() + "**" + "\n").getBytes());
-        os.write(new String("Length: " + _len + "\n").getBytes());
-        os.write(new String("C-num: " + _cNum + "\n").getBytes());
-        os.write(new String("C-type: " + _cType + "\n").getBytes());
+    public void dump(final OutputStream os) throws IOException {
+        os.write(("**" + getStrCNum() + "**" + "\n").getBytes());
+        os.write(("Length: " + _len + "\n").getBytes());
+        os.write(("C-num: " + _cNum + "\n").getBytes());
+        os.write(("C-type: " + _cType + "\n").getBytes());
     }
 
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof COPSObjHeader)) {
+            return false;
+        }
+        final COPSObjHeader that = (COPSObjHeader) o;
+        return _cNum == that._cNum && _cType == that._cType && _len == that._len;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = (int) _len;
+        result = 31 * result + (int) _cNum;
+        result = 31 * result + (int) _cType;
+        return result;
+    }
 }
 

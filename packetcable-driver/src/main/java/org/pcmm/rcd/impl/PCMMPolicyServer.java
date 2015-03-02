@@ -3,64 +3,39 @@
  */
 package org.pcmm.rcd.impl;
 
+import org.pcmm.PCMMConstants;
+import org.pcmm.PCMMGlobalConfig;
+import org.pcmm.PCMMProperties;
+import org.pcmm.gates.*;
+import org.pcmm.gates.IGateSpec.DSCPTOS;
+import org.pcmm.gates.IGateSpec.Direction;
+import org.pcmm.gates.impl.*;
+import org.pcmm.messages.IMessage.MessageProperties;
+import org.pcmm.messages.impl.MessageFactory;
+import org.pcmm.objects.MMVersionInfo;
+import org.pcmm.rcd.IPCMMPolicyServer;
+import org.pcmm.utils.PCMMException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.umu.cops.prpdp.COPSPdpConnection;
+import org.umu.cops.prpdp.COPSPdpDataProcess;
+import org.umu.cops.stack.*;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Properties;
 
-import org.pcmm.PCMMConstants;
-import org.pcmm.PCMMGlobalConfig;
-import org.pcmm.PCMMProperties;
-import org.pcmm.gates.IAMID;
-import org.pcmm.gates.IClassifier;
-import org.pcmm.gates.IExtendedClassifier;
-import org.pcmm.gates.IGateID;
-import org.pcmm.gates.IGateSpec;
-import org.pcmm.gates.IGateSpec.DSCPTOS;
-import org.pcmm.gates.IGateSpec.Direction;
-import org.pcmm.gates.IPCMMError;
-import org.pcmm.gates.IPCMMGate;
-import org.pcmm.gates.ISubscriberID;
-import org.pcmm.gates.ITrafficProfile;
-import org.pcmm.gates.ITransactionID;
-import org.pcmm.gates.impl.AMID;
-import org.pcmm.gates.impl.BestEffortService;
-import org.pcmm.gates.impl.Classifier;
-import org.pcmm.gates.impl.ExtendedClassifier;
-import org.pcmm.gates.impl.GateID;
-import org.pcmm.gates.impl.GateSpec;
-import org.pcmm.gates.impl.PCMMError;
-import org.pcmm.gates.impl.PCMMGateReq;
-import org.pcmm.gates.impl.SubscriberID;
-import org.pcmm.gates.impl.TransactionID;
-import org.pcmm.messages.IMessage.MessageProperties;
-import org.pcmm.messages.impl.MessageFactory;
-import org.pcmm.objects.MMVersionInfo;
-import org.pcmm.rcd.IPCMMPolicyServer;
-import org.pcmm.utils.PCMMException;
-import org.umu.cops.prpdp.COPSPdpConnection;
-import org.umu.cops.prpdp.COPSPdpDataProcess;
-import org.umu.cops.stack.COPSClientAcceptMsg;
-import org.umu.cops.stack.COPSClientCloseMsg;
-import org.umu.cops.stack.COPSClientOpenMsg;
-import org.umu.cops.stack.COPSClientSI;
-import org.umu.cops.stack.COPSData;
-import org.umu.cops.stack.COPSDecision;
-import org.umu.cops.stack.COPSError;
-import org.umu.cops.stack.COPSException;
-import org.umu.cops.stack.COPSHeader;
-import org.umu.cops.stack.COPSMsg;
-import org.umu.cops.stack.COPSReportMsg;
-import org.umu.cops.stack.COPSReqMsg;
-
 /**
  * 
  * PCMM policy server
  * 
  */
-public class PCMMPolicyServer extends AbstractPCMMServer implements
-		IPCMMPolicyServer {
+public class PCMMPolicyServer extends AbstractPCMMServer implements IPCMMPolicyServer {
+
+    private final static Logger logger = LoggerFactory.getLogger(PCMMPolicyServer.class);
+
 	/**
 	 * since PCMMPolicyServer can connect to multiple CMTS (PEP) we need to
 	 * manage each connection in a separate thread.
@@ -76,9 +51,9 @@ public class PCMMPolicyServer extends AbstractPCMMServer implements
 	 * @see
 	 * org.pcmm.rcd.IPCMMPolicyServer#requestCMTSConnection(java.lang.String)
 	 */
-	public IPSCMTSClient requestCMTSConnection(String host) {
+	public IPSCMTSClient requestCMTSConnection(final String host) {
 		try {
-			InetAddress address = InetAddress.getByName(host);
+            final InetAddress address = InetAddress.getByName(host);
 			return requestCMTSConnection(address);
 		} catch (UnknownHostException e) {
 			logger.error(e.getMessage());
@@ -93,70 +68,94 @@ public class PCMMPolicyServer extends AbstractPCMMServer implements
 	 * org.pcmm.rcd.IPCMMPolicyServer#requestCMTSConnection(java.net.InetAddress
 	 * )
 	 */
-	public IPSCMTSClient requestCMTSConnection(InetAddress host) {
-		IPSCMTSClient client = new PSCMTSClient();
+	public IPSCMTSClient requestCMTSConnection(final InetAddress host) {
+        logger.info("Requesting CMTS Connection");
+        final PSCMTSClient client = new PSCMTSClient();
 		try {
 			if (client.tryConnect(host, PCMMProperties.get(PCMMConstants.PCMM_PORT, Integer.class))) {
 				boolean endNegotiation = false;
 				while (!endNegotiation) {
 					logger.debug("waiting for OPN message from CMTS");
-					COPSMsg opnMessage = client.readMessage();
+                    final COPSMsg opnMessage = client.readMessage();
 					// Client-Close
 					if (opnMessage.getHeader().isAClientClose()) {
-						COPSError error = ((COPSClientCloseMsg) opnMessage).getError();
-						logger.debug("CMTS requetsed Client-Close");
-						throw new PCMMException(new PCMMError(error.getErrCode(), error.getErrSubCode()));
-					} else // Client-Open
-					if (opnMessage.getHeader().isAClientOpen()) {
+                        if (opnMessage instanceof COPSClientCloseMsg) {
+                            final COPSError error = ((COPSClientCloseMsg) opnMessage).getError();
+                            logger.debug("CMTS requetsed Client-Close");
+                            throw new PCMMException(new PCMMError(error.getErrCode(), error.getErrSubCode()));
+                        } else {
+                            logger.error("Message is not an instance of COPSClientCloseMsg");
+                        }
+					} else if (opnMessage.getHeader().isAClientOpen()) { // Client-Open
 						logger.debug("OPN message received from CMTS");
-						COPSClientOpenMsg opn = (COPSClientOpenMsg) opnMessage;
-						if (opn.getClientSI() == null)
-							throw new COPSException("CMTS shoud have sent MM version info in Client-Open message");
-						else {
-							// set the version info
-							MMVersionInfo vInfo = new MMVersionInfo(opn.getClientSI().getData().getData());
-							client.setVersionInfo(vInfo);
-							logger.debug("CMTS sent MMVersion info : major:" + vInfo.getMajorVersionNB() + "  minor:" + vInfo.getMinorVersionNB()); //
-							if (client.getVersionInfo().getMajorVersionNB() == client.getVersionInfo().getMinorVersionNB()) {
-								// send a CC since CMTS has exhausted all
-								// protocol selection attempts
-								throw new COPSException("CMTS exhausted all protocol selection attempts");
-							}
-						}
-						// send CAT response
-						Properties prop = new Properties();
-						logger.debug("send CAT to the CMTS ");
-						COPSMsg catMsg = MessageFactory.getInstance().create(COPSHeader.COPS_OP_CAT, prop);
-						client.sendRequest(catMsg);
-						// wait for REQ msg
-						COPSMsg reqMsg = client.readMessage();
-						// Client-Close
-						if (reqMsg.getHeader().isAClientClose()) {
-							COPSError error = ((COPSClientCloseMsg) opnMessage).getError();
-							logger.debug("CMTS requetsed Client-Close");
-							throw new PCMMException(new PCMMError(error.getErrCode(), error.getErrSubCode()));
-						} else // Request
-						if (reqMsg.getHeader().isARequest()) {
-							logger.debug("Received REQ message form CMTS");
-							// end connection attempts
-							COPSReqMsg req = (COPSReqMsg) reqMsg;
-							// set the client handle to be used later by the
-							// gate-set
-							client.setClientHandle(req.getClientHandle().getId().str());
-							COPSPdpDataProcess processor = null;
-							COPSPdpConnection copsPdpConnection = new COPSPdpConnection(opn.getPepId(), ((AbstractPCMMClient) client).getSocket(), processor);
-							copsPdpConnection.setKaTimer(((COPSClientAcceptMsg) catMsg).getKATimer().getTimerVal());
-							pool.schedule(pool.adapt(copsPdpConnection));
-							endNegotiation = true;
-						} else
-							throw new COPSException("Can't understand request");
+                        if (opnMessage instanceof COPSClientOpenMsg) {
+                            final COPSClientOpenMsg opn = (COPSClientOpenMsg) opnMessage;
+                            if (opn.getClientSI() == null)
+                                throw new COPSException("CMTS shoud have sent MM version info in Client-Open message");
+                            else {
+                                // set the version info
+                                final MMVersionInfo vInfo = new MMVersionInfo(opn.getClientSI().getData().getData());
+                                client.setVersionInfo(vInfo);
+                                logger.debug("CMTS sent MMVersion info : major:" + vInfo.getMajorVersionNB() + "  minor:" + vInfo.getMinorVersionNB()); //
+                                if (client.getVersionInfo().getMajorVersionNB() == client.getVersionInfo().getMinorVersionNB()) {
+                                    // send a CC since CMTS has exhausted all
+                                    // protocol selection attempts
+                                    throw new COPSException("CMTS exhausted all protocol selection attempts");
+                                }
+                            }
+                            // send CAT response
+                            final Properties prop = new Properties();
+                            logger.debug("send CAT to the CMTS ");
+                            final COPSMsg catMsg = MessageFactory.getInstance().create(COPSHeader.COPS_OP_CAT, prop);
+                            client.sendRequest(catMsg);
+                            // wait for REQ msg
+                            final COPSMsg reqMsg = client.readMessage();
+                            // Client-Close
+                            if (reqMsg.getHeader().isAClientClose()) {
+                                // This will never occur please see if instanceof above
+                                if (reqMsg instanceof COPSClientCloseMsg) {
+                                    final COPSError error = ((COPSClientCloseMsg) reqMsg).getError();
+                                    logger.debug("CMTS requetsed Client-Close");
+                                    throw new PCMMException(new PCMMError(error.getErrCode(), error.getErrSubCode()));
+                                } else {
+                                    logger.error("Message is not of type COPSClientCloseMsg");
+                                    throw new RuntimeException("Unable process Client close");
+                                }
+                            } else // Request
+                                if (reqMsg.getHeader().isARequest()) {
+                                    logger.debug("Received REQ message form CMTS");
+                                    // end connection attempts
+                                    if (reqMsg instanceof COPSReqMsg) {
+                                        final COPSReqMsg req = (COPSReqMsg) reqMsg;
+                                        // set the client handle to be used later by the
+                                        // gate-set
+                                        client.setClientHandle(req.getClientHandle().getId().str());
+
+                                        if (catMsg instanceof COPSClientAcceptMsg) {
+                                            final COPSPdpDataProcess processor = null;
+                                            final COPSPdpConnection copsPdpConnection =
+                                                    new COPSPdpConnection(opn.getPepId(), client.getSocket(), processor,
+                                                            ((COPSClientAcceptMsg) catMsg).getKATimer().getTimerVal());
+                                            pool.schedule(pool.adapt(copsPdpConnection));
+                                        } else {
+                                            logger.error("Message is not of instance COPSClientAcceptMsg");
+                                        }
+                                    } else {
+                                        logger.error("Message not of type COPSReqMsg");
+                                    }
+                                    endNegotiation = true;
+                                } else
+                                    throw new COPSException("Can't understand request");
+                        } else {
+                            logger.error("Message is not an instance of COPSClientOpenMsg");
+                        }
 					} else {
 						throw new COPSException("Can't understand request");
 					}
 				}
 			}
 			// else raise exception.
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			logger.error(e.getMessage());
 			// no need to keep connection.
 			client.disconnect();
@@ -166,8 +165,9 @@ public class PCMMPolicyServer extends AbstractPCMMServer implements
 	}
 
 	@Override
-	protected IPCMMClientHandler getPCMMClientHandler(Socket socket) {
-		// TODO Auto-generated method stub
+	protected IPCMMClientHandler getPCMMClientHandler(final Socket socket) {
+        logger.info("Requesting the PCMM client handler");
+		// TODO - Implement me
 		return null;
 	}
 
@@ -175,46 +175,49 @@ public class PCMMPolicyServer extends AbstractPCMMServer implements
 	 * 
 	 * @see {@link IPSCMTSClient}
 	 */
-	/* public */static class PSCMTSClient extends AbstractPCMMClient implements
-			IPSCMTSClient {
+	static class PSCMTSClient extends AbstractPCMMClient implements IPSCMTSClient {
 		/**
 		 * Transaction id is
 		 */
-		private short transactionID;
-		private short classifierID;
-		private int gateID;
+		private transient short transactionID;
+		private final short classifierID;
+		private transient int gateID;
 
 		public PSCMTSClient() {
 			super();
-			logger.info("Client " + getClass() + hashCode() + " crated and started");
+            // TODO - determine how this value should be set
+            classifierID = 0;
+			logger.info("Client " + getClass() + hashCode() + " created and started");
 		}
 
-		public PSCMTSClient(Socket socket) {
+		public PSCMTSClient(final Socket socket) {
+            this();
 			setSocket(socket);
 		}
 
+        @Override
 		public boolean gateSet() {
 			logger.debug("Sending Gate-Set message");
 			if (!isConnected())
 				throw new IllegalArgumentException("Not connected");
 			// XXX check if other values should be provided
 			//
-			ITrafficProfile trafficProfile = buildTrafficProfile();
+            final ITrafficProfile trafficProfile = buildTrafficProfile();
 			// PCMMGlobalConfig.DefaultBestEffortTrafficRate);
-			ITransactionID trID = new TransactionID();
+            final ITransactionID trID = new TransactionID();
 			// set transaction ID to gate set
 			trID.setGateCommandType(ITransactionID.GateSet);
-			transactionID = (short) (transactionID == 0 ? (short) (Math.random() * hashCode()) : transactionID);
+			transactionID = (transactionID == 0 ? (short) (Math.random() * hashCode()) : transactionID);
 			trID.setTransactionIdentifier(transactionID);
 			// AMID
-			IAMID amid = getAMID();
+            final IAMID amid = getAMID();
 			// GATE SPEC
-			IGateSpec gateSpec = getGateSpec();
-			ISubscriberID subscriberID = new SubscriberID();
+            final IGateSpec gateSpec = getGateSpec();
+            final ISubscriberID subscriberID = new SubscriberID();
 			// Classifier if MM version <4, Extended Classifier else
-			IClassifier eclassifier = getClassifier(subscriberID);
+            final IClassifier eclassifier = getClassifier(subscriberID);
 
-			IPCMMGate gate = new PCMMGateReq();
+            final IPCMMGate gate = new PCMMGateReq();
 			gate.setTransactionID(trID);
 			gate.setAMID(amid);
 			gate.setSubscriberID(subscriberID);
@@ -224,28 +227,28 @@ public class PCMMPolicyServer extends AbstractPCMMServer implements
 			byte[] data = gate.getData();
 
 			// configure message properties
-			Properties prop = new Properties();
+            final Properties prop = new Properties();
 			prop.put(MessageProperties.CLIENT_HANDLE, getClientHandle());
 			prop.put(MessageProperties.DECISION_CMD_CODE, COPSDecision.DEC_INSTALL);
 			prop.put(MessageProperties.DECISION_FLAG, (short) COPSDecision.DEC_NULL);
 			prop.put(MessageProperties.GATE_CONTROL, new COPSData(data, 0, data.length));
-			COPSMsg decisionMsg = MessageFactory.getInstance().create(COPSHeader.COPS_OP_DEC, prop);
+            final COPSMsg decisionMsg = MessageFactory.getInstance().create(COPSHeader.COPS_OP_DEC, prop);
 			// ** Send the GateSet Decision
 			// **
 			sendRequest(decisionMsg);
 			// TODO check on this ?
 			// waits for the gate-set-ack or error
-			COPSMsg responseMsg = readMessage();
+            final COPSMsg responseMsg = readMessage();
 			if (responseMsg.getHeader().isAReport()) {
 				logger.info("processing received report from CMTS");
-				COPSReportMsg reportMsg = (COPSReportMsg) responseMsg;
+                final COPSReportMsg reportMsg = (COPSReportMsg) responseMsg;
 				if (reportMsg.getClientSI().size() == 0) {
 					logger.debug("CMTS responded with an empty SI");
 					return false;
 				}
-				COPSClientSI clientSI = (COPSClientSI) reportMsg.getClientSI().elementAt(0);
-				IPCMMGate responseGate = new PCMMGateReq(clientSI.getData().getData());
-				IPCMMError error = ((PCMMGateReq) responseGate).getError();
+                final COPSClientSI clientSI = reportMsg.getClientSI().get(0);
+                final IPCMMGate responseGate = new PCMMGateReq(clientSI.getData().getData());
+                final IPCMMError error = responseGate.getError();
 				if (error != null) {
 					logger.error(error.toString());
 					return false;
@@ -264,42 +267,38 @@ public class PCMMPolicyServer extends AbstractPCMMServer implements
 			return false;
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see org.pcmm.rcd.IPCMMPolicyServer#gateDelete()
-		 */
 		@Override
 		public boolean gateDelete() {
+            logger.info("Deleting gate");
 			if (!isConnected()) {
 				logger.error("Not connected");
 				return false;
 			}
-			ITransactionID trID = new TransactionID();
+            final ITransactionID trID = new TransactionID();
 			// set transaction ID to gate set
 			trID.setGateCommandType(ITransactionID.GateDelete);
 			trID.setTransactionIdentifier(transactionID);
 			// AMID
-			IAMID amid = getAMID();
+            final IAMID amid = getAMID();
 			// GATE SPEC
-			ISubscriberID subscriberID = new SubscriberID();
+            final ISubscriberID subscriberID = new SubscriberID();
 			try {
 				subscriberID.setSourceIPAddress(InetAddress.getLocalHost());
 			} catch (UnknownHostException e1) {
 				logger.error(e1.getMessage());
 			}
 
-			IGateID gateIdObj = new GateID();
+            final IGateID gateIdObj = new GateID();
 			gateIdObj.setGateID(gateID);
 
-			IPCMMGate gate = new PCMMGateReq();
+            final IPCMMGate gate = new PCMMGateReq();
 			gate.setTransactionID(trID);
 			gate.setAMID(amid);
 			gate.setSubscriberID(subscriberID);
 			gate.setGateID(gateIdObj);
 
 			// configure message properties
-			Properties prop = new Properties();
+            final Properties prop = new Properties();
 			prop.put(MessageProperties.CLIENT_HANDLE, getClientHandle());
 			prop.put(MessageProperties.DECISION_CMD_CODE, COPSDecision.DEC_INSTALL);
 			prop.put(MessageProperties.DECISION_FLAG, (short) COPSDecision.DEC_NULL);
@@ -315,23 +314,23 @@ public class PCMMPolicyServer extends AbstractPCMMServer implements
 				return false;
 			}
 			// waits for the gate-delete-ack or error
-			COPSMsg responseMsg = readMessage();
+            final COPSMsg responseMsg = readMessage();
 			if (responseMsg.getHeader().isAReport()) {
 				logger.info("processing received report from CMTS");
-				COPSReportMsg reportMsg = (COPSReportMsg) responseMsg;
+                final COPSReportMsg reportMsg = (COPSReportMsg) responseMsg;
 				if (reportMsg.getClientSI().size() == 0) {
 					return false;
 				}
-				COPSClientSI clientSI = (COPSClientSI) reportMsg.getClientSI().elementAt(0);
-				IPCMMGate responseGate = new PCMMGateReq(clientSI.getData().getData());
-				IPCMMError error = ((PCMMGateReq) responseGate).getError();
+                final COPSClientSI clientSI = reportMsg.getClientSI().get(0);
+                final IPCMMGate responseGate = new PCMMGateReq(clientSI.getData().getData());
+                final IPCMMError error = responseGate.getError();
 				if (error != null) {
 					logger.error(error.toString());
 					return false;
 				}
 				// here CMTS responded that he acknowledged the Gate-delete
 				// message
-				ITransactionID responseTransactionID = responseGate.getTransactionID();
+                final ITransactionID responseTransactionID = responseGate.getTransactionID();
 				if (responseTransactionID != null && responseTransactionID.getGateCommandType() == ITransactionID.GateDeleteAck) {
 					// TODO check : Is this test needed ??
 					if (responseGate.getGateID().getGateID() == gateID && responseTransactionID.getTransactionIdentifier() == transactionID) {
@@ -344,47 +343,43 @@ public class PCMMPolicyServer extends AbstractPCMMServer implements
 			return false;
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see org.pcmm.rcd.IPCMMPolicyServer#gateInfo()
-		 */
 		@Override
 		public boolean gateInfo() {
+            logger.info("Gate info");
 			if (!isConnected()) {
 				logger.error("Not connected");
 				return false;
 			}
-			ITransactionID trID = new TransactionID();
+            final ITransactionID trID = new TransactionID();
 			// set transaction ID to gate set
 			trID.setGateCommandType(ITransactionID.GateInfo);
 			trID.setTransactionIdentifier(transactionID);
 			// AMID
-			IAMID amid = getAMID();
+            final IAMID amid = getAMID();
 			// GATE SPEC
-			ISubscriberID subscriberID = new SubscriberID();
+            final ISubscriberID subscriberID = new SubscriberID();
 			try {
 				subscriberID.setSourceIPAddress(InetAddress.getLocalHost());
 			} catch (UnknownHostException e1) {
 				logger.error(e1.getMessage());
 			}
-			IGateID gateIdObj = new GateID();
+            final IGateID gateIdObj = new GateID();
 			gateIdObj.setGateID(gateID);
 
-			IPCMMGate gate = new PCMMGateReq();
+            final IPCMMGate gate = new PCMMGateReq();
 			gate.setTransactionID(trID);
 			gate.setAMID(amid);
 			gate.setSubscriberID(subscriberID);
 			gate.setGateID(gateIdObj);
 
 			// configure message properties
-			Properties prop = new Properties();
+            final Properties prop = new Properties();
 			prop.put(MessageProperties.CLIENT_HANDLE, getClientHandle());
 			prop.put(MessageProperties.DECISION_CMD_CODE, COPSDecision.DEC_INSTALL);
 			prop.put(MessageProperties.DECISION_FLAG, (short) COPSDecision.DEC_NULL);
-			byte[] data = gate.getData();
+            final byte[] data = gate.getData();
 			prop.put(MessageProperties.GATE_CONTROL, new COPSData(data, 0, data.length));
-			COPSMsg decisionMsg = MessageFactory.getInstance().create(COPSHeader.COPS_OP_DEC, prop);
+            final COPSMsg decisionMsg = MessageFactory.getInstance().create(COPSHeader.COPS_OP_DEC, prop);
 			// ** Send the GateSet Decision
 			// **
 			try {
@@ -394,17 +389,17 @@ public class PCMMPolicyServer extends AbstractPCMMServer implements
 				return false;
 			}
 			// waits for the gate-Info-ack or error
-			COPSMsg responseMsg = readMessage();
+            final COPSMsg responseMsg = readMessage();
 			if (responseMsg.getHeader().isAReport()) {
 				logger.info("processing received report from CMTS");
-				COPSReportMsg reportMsg = (COPSReportMsg) responseMsg;
+                final COPSReportMsg reportMsg = (COPSReportMsg) responseMsg;
 				if (reportMsg.getClientSI().size() == 0) {
 					return false;
 				}
-				COPSClientSI clientSI = (COPSClientSI) reportMsg.getClientSI().elementAt(0);
-				IPCMMGate responseGate = new PCMMGateReq(clientSI.getData().getData());
-				IPCMMError error = ((PCMMGateReq) responseGate).getError();
-				ITransactionID responseTransactionID = responseGate.getTransactionID();
+                final COPSClientSI clientSI = reportMsg.getClientSI().get(0);
+                final IPCMMGate responseGate = new PCMMGateReq(clientSI.getData().getData());
+                final IPCMMError error = responseGate.getError();
+                final ITransactionID responseTransactionID = responseGate.getTransactionID();
 				if (error != null) {
 					logger.debug(responseTransactionID != null ? responseTransactionID.toString() : "returned Transaction ID is null");
 					logger.error(error.toString());
@@ -436,47 +431,43 @@ public class PCMMPolicyServer extends AbstractPCMMServer implements
 			return false;
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see org.pcmm.rcd.IPCMMPolicyServer#synchronize()
-		 */
 		@Override
 		public boolean gateSynchronize() {
+            logger.info("Gate synchronize");
 			if (!isConnected()) {
 				logger.error("Not connected");
 				return false;
 			}
-			ITransactionID trID = new TransactionID();
+            final ITransactionID trID = new TransactionID();
 			// set transaction ID to gate set
 			trID.setGateCommandType(ITransactionID.SynchRequest);
 			trID.setTransactionIdentifier(transactionID);
 			// AMID
-			IAMID amid = getAMID();
+            final IAMID amid = getAMID();
 			// GATE SPEC
-			ISubscriberID subscriberID = new SubscriberID();
+            final ISubscriberID subscriberID = new SubscriberID();
 			try {
 				subscriberID.setSourceIPAddress(InetAddress.getLocalHost());
 			} catch (UnknownHostException e1) {
 				logger.error(e1.getMessage());
 			}
-			IGateID gateIdObj = new GateID();
+            final IGateID gateIdObj = new GateID();
 			gateIdObj.setGateID(gateID);
 
-			IPCMMGate gate = new PCMMGateReq();
+            final IPCMMGate gate = new PCMMGateReq();
 			gate.setTransactionID(trID);
 			gate.setAMID(amid);
 			gate.setSubscriberID(subscriberID);
 			gate.setGateID(gateIdObj);
 
 			// configure message properties
-			Properties prop = new Properties();
+            final Properties prop = new Properties();
 			prop.put(MessageProperties.CLIENT_HANDLE, getClientHandle());
 			prop.put(MessageProperties.DECISION_CMD_CODE, COPSDecision.DEC_INSTALL);
 			prop.put(MessageProperties.DECISION_FLAG, (short) COPSDecision.DEC_NULL);
-			byte[] data = gate.getData();
+            final byte[] data = gate.getData();
 			prop.put(MessageProperties.GATE_CONTROL, new COPSData(data, 0, data.length));
-			COPSMsg decisionMsg = MessageFactory.getInstance().create(COPSHeader.COPS_OP_DEC, prop);
+            final COPSMsg decisionMsg = MessageFactory.getInstance().create(COPSHeader.COPS_OP_DEC, prop);
 			// ** Send the GateSet Decision
 			// **
 			try {
@@ -486,17 +477,17 @@ public class PCMMPolicyServer extends AbstractPCMMServer implements
 				return false;
 			}
 			// waits for the gate-Info-ack or error
-			COPSMsg responseMsg = readMessage();
+            final COPSMsg responseMsg = readMessage();
 			if (responseMsg.getHeader().isAReport()) {
 				logger.info("processing received report from CMTS");
-				COPSReportMsg reportMsg = (COPSReportMsg) responseMsg;
+                final COPSReportMsg reportMsg = (COPSReportMsg) responseMsg;
 				if (reportMsg.getClientSI().size() == 0) {
 					return false;
 				}
-				COPSClientSI clientSI = (COPSClientSI) reportMsg.getClientSI().elementAt(0);
-				IPCMMGate responseGate = new PCMMGateReq(clientSI.getData().getData());
-				IPCMMError error = ((PCMMGateReq) responseGate).getError();
-				ITransactionID responseTransactionID = responseGate.getTransactionID();
+                final COPSClientSI clientSI = reportMsg.getClientSI().get(0);
+                final IPCMMGate responseGate = new PCMMGateReq(clientSI.getData().getData());
+                final IPCMMError error = responseGate.getError();
+                final ITransactionID responseTransactionID = responseGate.getTransactionID();
 				if (error != null) {
 					logger.debug(responseTransactionID != null ? responseTransactionID.toString() : "returned Transaction ID is null");
 					logger.error(error.toString());
@@ -529,17 +520,16 @@ public class PCMMPolicyServer extends AbstractPCMMServer implements
 		}
 
 		private IAMID getAMID() {
-			IAMID amid = new AMID();
+            final IAMID amid = new AMID();
 			amid.setApplicationType((short) 1);
 			amid.setApplicationMgrTag((short) 1);
 			return amid;
 		}
 
-		private IClassifier getClassifier(ISubscriberID subscriberID) {
-			IClassifier classifier = null;
+		private IClassifier getClassifier(final ISubscriberID subscriberID) {
 			// if the version major is less than 4 we need to use Classifier
 			if (getVersionInfo().getMajorVersionNB() >= 4) {
-				classifier = new ExtendedClassifier();
+				final ExtendedClassifier classifier = new ExtendedClassifier();
 				// eclassifier.setProtocol(IClassifier.Protocol.NONE);
 				classifier.setProtocol(IClassifier.Protocol.TCP);
 				try {
@@ -550,30 +540,30 @@ public class PCMMPolicyServer extends AbstractPCMMServer implements
 					subscriberID.setSourceIPAddress(subIP);
 					classifier.setSourceIPAddress(srcIP);
 					classifier.setDestinationIPAddress(dstIP);
-					((IExtendedClassifier) classifier).setIPDestinationMask(mask);
-					((IExtendedClassifier) classifier).setIPSourceMask(mask);
-				} catch (UnknownHostException unae) {
-					System.out.println("Error getByName" + unae.getMessage());
+					classifier.setIPDestinationMask(mask);
+					classifier.setIPSourceMask(mask);
+				} catch (final UnknownHostException unae) {
+					logger.error("Error getByName", unae);
 				}
-				((IExtendedClassifier) classifier).setSourcePortStart(PCMMGlobalConfig.srcPort);
-				((IExtendedClassifier) classifier).setSourcePortEnd(PCMMGlobalConfig.srcPort);
-				((IExtendedClassifier) classifier).setDestinationPortStart(PCMMGlobalConfig.dstPort);
-				((IExtendedClassifier) classifier).setDestinationPortEnd(PCMMGlobalConfig.dstPort);
-				((IExtendedClassifier) classifier).setActivationState((byte) 0x01);
+				classifier.setSourcePortStart(PCMMGlobalConfig.srcPort);
+				classifier.setSourcePortEnd(PCMMGlobalConfig.srcPort);
+				classifier.setDestinationPortStart(PCMMGlobalConfig.dstPort);
+				classifier.setDestinationPortEnd(PCMMGlobalConfig.dstPort);
+				classifier.setActivationState((byte) 0x01);
 				/*
 				 * check if we have a stored value of classifierID else we just
 				 * create one eclassifier.setClassifierID((short) 0x01);
 				 */
-				((IExtendedClassifier) classifier).setClassifierID((short) (classifierID == 0 ? Math.random() * hashCode() : classifierID));
+				classifier.setClassifierID((short) (classifierID == 0 ? Math.random() * hashCode() : classifierID));
 				// XXX - testie
 				// eclassifier.setClassifierID((short) 1);
-				((IExtendedClassifier) classifier).setAction((byte) 0x00);
+				classifier.setAction((byte) 0x00);
 				// XXX - temp default until Gate Modify is hacked in
 				// eclassifier.setPriority(PCMMGlobalConfig.EClassifierPriority);
 				classifier.setPriority((byte) 65);
-
+                return classifier;
 			} else {
-				classifier = new Classifier();
+                final Classifier classifier = new Classifier();
 				classifier.setProtocol(IClassifier.Protocol.TCP);
 				try {
 					InetAddress subIP = InetAddress.getByName(PCMMGlobalConfig.SubscriberID);
@@ -582,13 +572,13 @@ public class PCMMPolicyServer extends AbstractPCMMServer implements
 					subscriberID.setSourceIPAddress(subIP);
 					classifier.setSourceIPAddress(srcIP);
 					classifier.setDestinationIPAddress(dstIP);
-				} catch (UnknownHostException unae) {
-					System.out.println("Error getByName" + unae.getMessage());
+				} catch (final UnknownHostException unae) {
+                    logger.error("Error getByName", unae);
 				}
 				classifier.setSourcePort(PCMMGlobalConfig.srcPort);
 				classifier.setDestinationPort(PCMMGlobalConfig.dstPort);
+                return classifier;
 			}
-			return classifier;
 		}
 
 		/**
@@ -596,7 +586,7 @@ public class PCMMPolicyServer extends AbstractPCMMServer implements
 		 * @return GateSpec object
 		 */
 		private IGateSpec getGateSpec() {
-			IGateSpec gateSpec = new GateSpec();
+			final IGateSpec gateSpec = new GateSpec();
 			gateSpec.setDirection(Direction.UPSTREAM);
 			gateSpec.setDSCP_TOSOverwrite(DSCPTOS.OVERRIDE);
 			gateSpec.setTimerT1(PCMMGlobalConfig.GateT1);
@@ -613,23 +603,23 @@ public class PCMMPolicyServer extends AbstractPCMMServer implements
 		 * @return Traffic profile
 		 */
 		private ITrafficProfile buildTrafficProfile() {
-			ITrafficProfile trafficProfile = new BestEffortService(BestEffortService.DEFAULT_ENVELOP);
-			((BestEffortService) trafficProfile).getAuthorizedEnvelop().setTrafficPriority(BestEffortService.DEFAULT_TRAFFIC_PRIORITY);
-			((BestEffortService) trafficProfile).getAuthorizedEnvelop().setMaximumTrafficBurst(BestEffortService.DEFAULT_MAX_TRAFFIC_BURST);
-			((BestEffortService) trafficProfile).getAuthorizedEnvelop().setRequestTransmissionPolicy(PCMMGlobalConfig.BETransmissionPolicy);
-			((BestEffortService) trafficProfile).getAuthorizedEnvelop().setMaximumSustainedTrafficRate(PCMMGlobalConfig.DefaultLowBestEffortTrafficRate);
+            final BestEffortService trafficProfile = new BestEffortService(BestEffortService.DEFAULT_ENVELOP);
+			trafficProfile.getAuthorizedEnvelop().setTrafficPriority(BestEffortService.DEFAULT_TRAFFIC_PRIORITY);
+			trafficProfile.getAuthorizedEnvelop().setMaximumTrafficBurst(BestEffortService.DEFAULT_MAX_TRAFFIC_BURST);
+			trafficProfile.getAuthorizedEnvelop().setRequestTransmissionPolicy(PCMMGlobalConfig.BETransmissionPolicy);
+			trafficProfile.getAuthorizedEnvelop().setMaximumSustainedTrafficRate(PCMMGlobalConfig.DefaultLowBestEffortTrafficRate);
 			// PCMMGlobalConfig.DefaultBestEffortTrafficRate);
 
-			((BestEffortService) trafficProfile).getReservedEnvelop().setTrafficPriority(BestEffortService.DEFAULT_TRAFFIC_PRIORITY);
-			((BestEffortService) trafficProfile).getReservedEnvelop().setMaximumTrafficBurst(BestEffortService.DEFAULT_MAX_TRAFFIC_BURST);
-			((BestEffortService) trafficProfile).getReservedEnvelop().setRequestTransmissionPolicy(PCMMGlobalConfig.BETransmissionPolicy);
-			((BestEffortService) trafficProfile).getReservedEnvelop().setMaximumSustainedTrafficRate(PCMMGlobalConfig.DefaultLowBestEffortTrafficRate);
+			trafficProfile.getReservedEnvelop().setTrafficPriority(BestEffortService.DEFAULT_TRAFFIC_PRIORITY);
+			trafficProfile.getReservedEnvelop().setMaximumTrafficBurst(BestEffortService.DEFAULT_MAX_TRAFFIC_BURST);
+			trafficProfile.getReservedEnvelop().setRequestTransmissionPolicy(PCMMGlobalConfig.BETransmissionPolicy);
+			trafficProfile.getReservedEnvelop().setMaximumSustainedTrafficRate(PCMMGlobalConfig.DefaultLowBestEffortTrafficRate);
 			// PCMMGlobalConfig.DefaultBestEffortTrafficRate);
 
-			((BestEffortService) trafficProfile).getCommittedEnvelop().setTrafficPriority(BestEffortService.DEFAULT_TRAFFIC_PRIORITY);
-			((BestEffortService) trafficProfile).getCommittedEnvelop().setMaximumTrafficBurst(BestEffortService.DEFAULT_MAX_TRAFFIC_BURST);
-			((BestEffortService) trafficProfile).getCommittedEnvelop().setRequestTransmissionPolicy(PCMMGlobalConfig.BETransmissionPolicy);
-			((BestEffortService) trafficProfile).getCommittedEnvelop().setMaximumSustainedTrafficRate(PCMMGlobalConfig.DefaultLowBestEffortTrafficRate);
+			trafficProfile.getCommittedEnvelop().setTrafficPriority(BestEffortService.DEFAULT_TRAFFIC_PRIORITY);
+			trafficProfile.getCommittedEnvelop().setMaximumTrafficBurst(BestEffortService.DEFAULT_MAX_TRAFFIC_BURST);
+			trafficProfile.getCommittedEnvelop().setRequestTransmissionPolicy(PCMMGlobalConfig.BETransmissionPolicy);
+			trafficProfile.getCommittedEnvelop().setMaximumSustainedTrafficRate(PCMMGlobalConfig.DefaultLowBestEffortTrafficRate);
 			return trafficProfile;
 		}
 

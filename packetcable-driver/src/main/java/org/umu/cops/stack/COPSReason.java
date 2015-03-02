@@ -69,7 +69,7 @@ public class COPSReason extends COPSPrObjBase {
     private short _reasonSubCode;
 
     ///
-    public COPSReason(short reasonCode, short subCode) {
+    public COPSReason(final short reasonCode, final short subCode) {
         _objHdr = new COPSObjHeader();
         _reasonCode = reasonCode;
         _reasonSubCode = subCode;
@@ -81,7 +81,7 @@ public class COPSReason extends COPSPrObjBase {
     /**
           Parse data and create COPSReason object
      */
-    protected COPSReason(byte[] dataPtr) {
+    protected COPSReason(final byte[] dataPtr) {
         _objHdr = new COPSObjHeader();
         _objHdr.parse(dataPtr);
         // _objHdr.checkDataLength();
@@ -94,53 +94,29 @@ public class COPSReason extends COPSPrObjBase {
         _objHdr.setDataLength((short) 4);
     }
 
-    /**
-     * Returns size in number of octects, including header
-     *
-     * @return   a short
-     *
-     */
+    @Override
     public short getDataLength() {
         return (_objHdr.getDataLength());
     }
 
     /**
      * Get Reason description
-     *
      * @return   a String
-     *
      */
     public String getDescription() {
-        String reasonStr1;
-        String reasonStr2;
-
-        ///Get the details from the error code
-        reasonStr1 = G_msgArray[_reasonCode];
-        //TODO - defind reason sub-codes
-        reasonStr2 = "";
-        return (reasonStr1 + ":" + reasonStr2);
+        return G_msgArray[_reasonCode];
     }
 
     /**
      * Always return true
-     *
      * @return   a boolean
-     *
      */
     public boolean isReason() {
         return true;
     }
 
-    /**
-     * Write object in network byte order to a given network socket
-     *
-     * @param    id                  a  Socket
-     *
-     * @throws   IOException
-     *
-     */
-    public void writeData(Socket id) throws IOException {
-
+    @Override
+    public void writeData(final Socket id) throws IOException {
         _objHdr.writeData(id);
 
         byte[] buf = new byte[4];
@@ -156,16 +132,13 @@ public class COPSReason extends COPSPrObjBase {
 
     /**
      * Write an object textual description in the output stream
-     *
      * @param    os                  an OutputStream
-     *
      * @throws   IOException
-     *
      */
-    public void dump(OutputStream os) throws IOException {
+    public void dump(final OutputStream os) throws IOException {
         _objHdr.dump(os);
-        os.write(new String("Reason Code: " + _reasonCode + "\n").getBytes());
-        os.write(new String("Reason Sub Code: " + _reasonSubCode + "\n").getBytes());
+        os.write(("Reason Code: " + _reasonCode + "\n").getBytes());
+        os.write(("Reason Sub Code: " + _reasonSubCode + "\n").getBytes());
     }
 }
 

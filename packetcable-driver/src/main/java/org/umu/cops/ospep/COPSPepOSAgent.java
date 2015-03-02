@@ -1,156 +1,58 @@
 package org.umu.cops.ospep;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.umu.cops.prpep.COPSPepAgent;
+import org.umu.cops.stack.*;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.net.UnknownHostException;
-import java.util.Hashtable;
-import java.util.Vector;
-
-import org.umu.cops.stack.COPSAcctTimer;
-import org.umu.cops.stack.COPSClientAcceptMsg;
-import org.umu.cops.stack.COPSClientCloseMsg;
-import org.umu.cops.stack.COPSClientOpenMsg;
-import org.umu.cops.stack.COPSData;
-import org.umu.cops.stack.COPSError;
-import org.umu.cops.stack.COPSException;
-import org.umu.cops.stack.COPSHandle;
-import org.umu.cops.stack.COPSHeader;
-import org.umu.cops.stack.COPSKATimer;
-import org.umu.cops.stack.COPSMsg;
-import org.umu.cops.stack.COPSPepId;
-import org.umu.cops.stack.COPSTransceiver;
+import java.util.List;
 
 /**
  * This is a outsourcing COPS PEP. Responsible for making
  * connection to the PDP and maintaining it
  */
-public class COPSPepOSAgent {
-    /**
-        PEP's identifier
-     */
-    private String _pepID;
+public class COPSPepOSAgent extends COPSPepAgent {
 
-    /**
-        PEP's client-type
-     */
-    private short _clientType;
-
-    /**
-        PDP host name
-     */
-    private String _psHost;
-
-    /**
-        PDP port
-     */
-    private int _psPort;
-
-    /**
-        PEP-PDP connection manager
-     */
-    private COPSPepOSConnection _conn;
-
-    /**
-        COPS error returned by the PDP
-     */
-    private COPSError _error;
+    private final static Logger logger = LoggerFactory.getLogger(COPSPepOSAgent.class);
 
     /**
      * Policy data processor class
      */
-    private COPSPepOSDataProcess _process;
+    private final COPSPepOSDataProcess _process;
+
+    /**
+     * The PEP OS Connection
+     */
+    private transient COPSPepOSConnection _conn;
 
     /**
      * Creates a PEP agent
      * @param    pepID              PEP-ID
      * @param    clientType         Client-type
      */
-    public COPSPepOSAgent(String pepID, short clientType) {
-        _pepID = pepID;
-        _clientType = clientType;
+    public COPSPepOSAgent(final String pepID, final short clientType, final String host, final int port,
+                          final COPSPepOSDataProcess process) {
+        super(pepID, clientType, host, port);
+        this._process = process;
     }
 
-    /**
-     * Creates a PEP agent with a PEP-ID equal to "noname"
-     * @param    clientType         Client-type
-     */
-    public COPSPepOSAgent(short clientType) {
-        // PEPId
-        try {
-            _pepID = InetAddress.getLocalHost().getHostName();
-        } catch (Exception e) {
-            _pepID = "noname";
-        }
-
-        _clientType = clientType;
-    }
-
-    /**
-     * Gets the identifier of the PEP
-     * @return  PEP-ID
-     */
-    public String getPepID() {
-        return _pepID;
-    }
-
-    /**
-     * Sets the policy data processor
-     * @param aDataProcess  Data processor class
-     */
-    public void setDataProcess(COPSPepOSDataProcess aDataProcess) {
-        this._process = aDataProcess;
-    }
-
-    /**
-     * Gets the COPS client-type
-     * @return  PEP's client-type
-     */
-    public short getClientType() {
-        return _clientType;
-    }
-
-    /**
-     * Gets PDP host name
-     * @return  PDP host name
-     */
-    public String getPDPName() {
-        return _psHost;
-    }
-
-    /**
-     * Gets the port of the PDP
-     * @return  PDP port
-     */
-    public int getPDPPort() {
-        return _psPort;
-    }
-
-    /**
-     * Connects to a PDP
-     * @param    psHost              PDP host name
-     * @param    psPort              PDP port
-     * @return   <tt>true</tt> if PDP accepts the connection; <tt>false</tt> otherwise
-     * @throws   java.net.UnknownHostException
-     * @throws   java.io.IOException
-     * @throws   COPSException
-     * @throws   COPSPepException
-     */
-    public boolean connect(String psHost, int psPort) throws UnknownHostException, IOException, COPSException, COPSPepException {
+    @Override
+    public boolean connect() throws IOException, COPSException {
+        logger.info("Connect to host:port - " + _psHost + ':' + _psPort);
         // COPSDebug.out(getClass().getName(), "Thread ( " + _pepID + ") - Connecting to PDP");
-        _psHost = psHost;
-        _psPort = psPort;
-
         // Check whether it already exists
         if (_conn == null)
-            _conn = processConnection(psHost,psPort);
+            _conn = processOSConnection(_psHost, _psPort);
         else {
-            // Check whether it's closed
-            if (_conn.isClosed())
-                _conn = processConnection(psHost,psPort);
-            else {
+            // Check if it's closed
+            if (_conn.isClosed()) {
+                _conn = processOSConnection(_psHost, _psPort);
+            } else {
                 disconnect(null);
-                _conn = processConnection(psHost,psPort);
+                _conn = processOSConnection(_psHost, _psPort);
             }
         }
 
@@ -158,39 +60,18 @@ public class COPSPepOSAgent {
     }
 
     /**
-     * Gets the connection manager
-     * @return  PEP-PDP connection manager object
+     * Creates a new request state when the outsourcing event is detected.
+     * @param handle The COPS handle for this request
+     * @param clientSIs The client specific data for this request
      */
-    public COPSPepOSConnection getConnection() {
-        return (_conn);
+    public void dispatchEvent(final COPSHandle handle, final List<COPSClientSI> clientSIs) {
+        logger.info("Dispatching event");
+        try {
+            addRequestState(handle, clientSIs);
+        } catch (Exception e) {
+            logger.error("Unexpected error adding the request state", e);
+        }
     }
-
-    /**
-     * Gets the COPS error returned by the PDP
-     * @return   <tt>COPSError</tt> returned by PDP
-     */
-    public COPSError getConnectionError() {
-        return _error;
-    }
-
-    /**
-     * Disconnects from the PDP
-     * @param error Reason
-     * @throws COPSException
-     * @throws IOException
-     */
-    public void disconnect(COPSError error) throws COPSException, IOException {
-        COPSHeader cHdr = new COPSHeader(COPSHeader.COPS_OP_CC, _clientType);
-        COPSClientCloseMsg closeMsg = new COPSClientCloseMsg();
-        closeMsg.add(cHdr);
-        if (error != null)
-            closeMsg.add(error);
-
-        closeMsg.writeData(_conn.getSocket());
-        _conn.close();
-        _conn = null;
-    }
-
     /**
      * Adds a request state to the connection manager.
      * @param clientSIs The client data from the outsourcing event
@@ -198,31 +79,12 @@ public class COPSPepOSAgent {
      * @throws COPSPepException
      * @throws COPSException
      */
-    public COPSPepOSReqStateMan addRequestState(COPSHandle handle, Vector clientSIs) throws COPSPepException, COPSException {
+    public COPSPepOSReqStateMan addRequestState(final COPSHandle handle, final List<COPSClientSI> clientSIs)
+            throws COPSException {
+        logger.info("Adding request state");
         if (_conn != null)
-            return _conn.addRequestState(handle.getId().str(), _process, clientSIs);
+            return _conn.addRequestState(handle, _process, clientSIs);
 
-        return null;
-    }
-
-    /**
-     * Queries the connection manager to delete a request state
-     * @param man   Request state manager
-     * @throws COPSPepException
-     * @throws COPSException
-     */
-    public void deleteRequestState (COPSPepOSReqStateMan man) throws COPSPepException, COPSException {
-        if (_conn != null)
-            _conn.deleteRequestState(man);
-    }
-
-    /**
-     * Gets all the request state managers
-     * @return  A <tt>Hashtable</tt> holding all active request state managers
-     */
-    public Hashtable getReqStateMans() {
-        if (_conn != null)
-            return _conn.getReqStateMans();
         return null;
     }
 
@@ -251,34 +113,34 @@ public class COPSPepOSAgent {
      *
      * Not send [<PDPRedirAddr>], [<Integrity>]
      *
-     * @throws   UnknownHostException
      * @throws   IOException
      * @throws   COPSException
      * @throws   COPSPepException
      *
      */
-    private COPSPepOSConnection processConnection(String psHost, int psPort) throws UnknownHostException, IOException, COPSException, COPSPepException {
+    protected COPSPepOSConnection processOSConnection(final String psHost, final int psPort)
+            throws IOException, COPSException {
         // Build OPN
-        COPSHeader hdr = new COPSHeader(COPSHeader.COPS_OP_OPN, _clientType);
+        final COPSHeader hdr = new COPSHeader(COPSHeader.COPS_OP_OPN, _clientType);
 
-        COPSPepId pepId = new COPSPepId();
-        COPSData d = new COPSData(_pepID);
+        final COPSPepId pepId = new COPSPepId();
+        final COPSData d = new COPSData(_pepID);
         pepId.setData(d);
 
-        COPSClientOpenMsg msg = new COPSClientOpenMsg();
+        final COPSClientOpenMsg msg = new COPSClientOpenMsg();
         msg.add(hdr);
         msg.add(pepId);
 
-        // Create socket and send OPN
-        InetAddress addr = InetAddress.getByName(psHost);
-        Socket socket = new Socket(addr,psPort);
+        // Create _socket and send OPN
+        final InetAddress addr = InetAddress.getByName(psHost);
+        final Socket socket = new Socket(addr,psPort);
         msg.writeData(socket);
 
         // Get response
-        COPSMsg recvmsg = COPSTransceiver.receiveMsg(socket);
+        final COPSMsg recvmsg = COPSTransceiver.receiveMsg(socket);
 
         if (recvmsg.getHeader().isAClientAccept()) {
-            COPSClientAcceptMsg cMsg = (COPSClientAcceptMsg) recvmsg;
+            final COPSClientAcceptMsg cMsg = (COPSClientAcceptMsg) recvmsg;
 
             // Support
             if (cMsg.getIntegrity() != null) {
@@ -286,21 +148,19 @@ public class COPSPepOSAgent {
             }
 
             // Mandatory KATimer
-            COPSKATimer kt = cMsg.getKATimer();
+            final COPSKATimer kt = cMsg.getKATimer();
             if (kt == null)
                 throw new COPSPepException ("Mandatory COPS object missing (KA Timer)");
             short _kaTimeVal = kt.getTimerVal();
 
             // ACTimer
-            COPSAcctTimer at = cMsg.getAcctTimer();
+            final COPSAcctTimer at = cMsg.getAcctTimer();
             short _acctTimer = 0;
             if (at != null)
                 _acctTimer = at.getTimerVal();
 
             // Create connection manager
-            COPSPepOSConnection conn = new COPSPepOSConnection(_clientType, socket);
-            conn.setKaTimer(_kaTimeVal);
-            conn.setAcctTimer(_acctTimer);
+            final COPSPepOSConnection conn = new COPSPepOSConnection(pepId, _clientType, socket, _kaTimeVal, _acctTimer);
             new Thread(conn).start();
 
             return conn;
@@ -314,16 +174,4 @@ public class COPSPepOSAgent {
         }
     }
 
-    /**
-     * Creates a new request state when the outsourcing event is detected.
-     * @param handle The COPS handle for this request
-     * @param clientSIs The client specific data for this request
-     */
-    public void dispatchEvent(COPSHandle handle, Vector clientSIs) {
-        try {
-            addRequestState(handle, clientSIs);
-        } catch (Exception e) {
-            System.err.println("COPSPepOSAgent: " + e.toString());
-        }
-    }
 }

@@ -3,9 +3,6 @@
  */
 package org.opendaylight.controller.packetcable.provider.processors;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-
 import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev100924.Ipv4Address;
 import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev100924.Ipv6Address;
 import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev100924.PortNumber;
@@ -16,11 +13,7 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.flow.traffic.profile.rev140
 import org.opendaylight.yang.gen.v1.urn.opendaylight.flow.traffic.profile.rev140908.traffic.profile.best.effort.attributes.BeCommittedEnvelope;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.flow.traffic.profile.rev140908.traffic.profile.best.effort.attributes.BeReservedEnvelope;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.flow.types.rev131026.flow.Match;
-import org.opendaylight.yang.gen.v1.urn.opendaylight.packetcable.match.types.rev140909.SubscriberIdRpcAddFlow;
-import org.opendaylight.yang.gen.v1.urn.opendaylight.packetcable.match.types.rev140909.TcpMatchRangesAttributes;
-import org.opendaylight.yang.gen.v1.urn.opendaylight.packetcable.match.types.rev140909.TcpMatchRangesRpcAddFlow;
-import org.opendaylight.yang.gen.v1.urn.opendaylight.packetcable.match.types.rev140909.UdpMatchRangesAttributes;
-import org.opendaylight.yang.gen.v1.urn.opendaylight.packetcable.match.types.rev140909.UdpMatchRangesRpcAddFlow;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.packetcable.match.types.rev140909.*;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.packetcable.match.types.rev140909.tcp.match.ranges.attributes.TcpMatchRanges;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.packetcable.match.types.rev140909.udp.match.ranges.attributes.UpdMatchRanges;
 import org.pcmm.gates.IClassifier;
@@ -33,6 +26,9 @@ import org.pcmm.gates.impl.ExtendedClassifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
 /**
  * 
  * PacketCable data processor
@@ -42,8 +38,9 @@ public class PCMMDataProcessor {
 
 	private Logger logger = LoggerFactory.getLogger(PCMMDataProcessor.class);
 
-	public ITrafficProfile process(TrafficProfileBestEffortAttributes bestEffort) {
-		BestEffortService trafficProfile = new BestEffortService(BestEffortService.DEFAULT_ENVELOP);
+	public ITrafficProfile process(final TrafficProfileBestEffortAttributes bestEffort) {
+        logger.info("Processing best effort");
+        final BestEffortService trafficProfile = new BestEffortService(BestEffortService.DEFAULT_ENVELOP);
 		getBEAuthorizedEnvelop(bestEffort, trafficProfile);
 		getBEReservedEnvelop(bestEffort, trafficProfile);
 		getBECommittedEnvelop(bestEffort, trafficProfile);
@@ -51,24 +48,27 @@ public class PCMMDataProcessor {
 	}
 
 	
-	public ITrafficProfile process(TrafficProfileDocsisServiceClassNameAttributes docsis) {
-		DOCSISServiceClassNameTrafficProfile trafficProfile = new DOCSISServiceClassNameTrafficProfile();
+	public ITrafficProfile process(final TrafficProfileDocsisServiceClassNameAttributes docsis) {
+        logger.info("Processing DOCSIS service class name attributes");
+        final DOCSISServiceClassNameTrafficProfile trafficProfile = new DOCSISServiceClassNameTrafficProfile();
 		trafficProfile.setServiceClassName(docsis.getServiceClassName());
 		return trafficProfile;
 	}
 
-	// TODO
-	public ITrafficProfile process(TrafficProfileFlowspecAttributes flowSpec) {
+	public ITrafficProfile process(final TrafficProfileFlowspecAttributes flowSpec) {
+        // TODO - Implement me
+        logger.info("Processing profile flow spec attributes");
 		throw new UnsupportedOperationException("Not impelemnted yet");
 	}
 
-	public IClassifier process(Match match) {
-		ExtendedClassifier classifier = new ExtendedClassifier();
+	public IClassifier process(final Match match) {
+        logger.info("Processing match");
+        final ExtendedClassifier classifier = new ExtendedClassifier();
 		classifier.setProtocol(IClassifier.Protocol.NONE);
 		getUdpMatchRangeValues(match.getAugmentation(UdpMatchRangesRpcAddFlow.class), classifier);
 		getTcpMatchRangesValues(match.getAugmentation(TcpMatchRangesRpcAddFlow.class), classifier);
-		SubscriberIdRpcAddFlow subId = match.getAugmentation(SubscriberIdRpcAddFlow.class);
-		Ipv6Address ipv6Address = subId.getSubscriberId().getIpv6Address();
+        final SubscriberIdRpcAddFlow subId = match.getAugmentation(SubscriberIdRpcAddFlow.class);
+        final Ipv6Address ipv6Address = subId.getSubscriberId().getIpv6Address();
 		if (ipv6Address != null)
 			try {
 				classifier.setDestinationIPAddress(InetAddress.getByName(ipv6Address.getValue()));
@@ -76,7 +76,7 @@ public class PCMMDataProcessor {
 				logger.error(e.getMessage());
 			}
 
-		Ipv4Address ipv4Address = subId.getSubscriberId().getIpv4Address();
+        final Ipv4Address ipv4Address = subId.getSubscriberId().getIpv4Address();
 		if (ipv4Address != null)
 			try {
 				classifier.setDestinationIPAddress(InetAddress.getByName(ipv4Address.getValue()));
@@ -86,9 +86,10 @@ public class PCMMDataProcessor {
 		return classifier;
 	}
 
-	private void getBECommittedEnvelop(TrafficProfileBestEffortAttributes bestEffort, BestEffortService trafficProfile) {
-		BEEnvelop committedEnvelop = trafficProfile.getCommittedEnvelop();
-		BeCommittedEnvelope beCommittedEnvelope = bestEffort.getBeCommittedEnvelope();
+	private void getBECommittedEnvelop(final TrafficProfileBestEffortAttributes bestEffort,
+                                       final BestEffortService trafficProfile) {
+        final BEEnvelop committedEnvelop = trafficProfile.getCommittedEnvelop();
+        final BeCommittedEnvelope beCommittedEnvelope = bestEffort.getBeCommittedEnvelope();
 		if (beCommittedEnvelope.getTrafficPriority() != null)
 			committedEnvelop.setTrafficPriority(beCommittedEnvelope.getTrafficPriority().byteValue());
 		else
@@ -107,9 +108,10 @@ public class PCMMDataProcessor {
 		// committedEnvelop.setMaximumSustainedTrafficRate(PCMMGlobalConfig.DefaultLowBestEffortTrafficRate);
 	}
 
-	private void getBEReservedEnvelop(TrafficProfileBestEffortAttributes bestEffort, BestEffortService trafficProfile) {
-		BEEnvelop reservedEnvelop = trafficProfile.getReservedEnvelop();
-		BeReservedEnvelope beReservedEnvelope = bestEffort.getBeReservedEnvelope();
+	private void getBEReservedEnvelop(final TrafficProfileBestEffortAttributes bestEffort,
+                                      final BestEffortService trafficProfile) {
+        final BEEnvelop reservedEnvelop = trafficProfile.getReservedEnvelop();
+        final BeReservedEnvelope beReservedEnvelope = bestEffort.getBeReservedEnvelope();
 		if (beReservedEnvelope.getTrafficPriority() != null)
 			reservedEnvelop.setTrafficPriority(beReservedEnvelope.getTrafficPriority().byteValue());
 		else
@@ -124,9 +126,10 @@ public class PCMMDataProcessor {
 			reservedEnvelop.setMaximumSustainedTrafficRate(beReservedEnvelope.getMaximumSustainedTrafficRate().intValue());
 	}
 
-	private void getBEAuthorizedEnvelop(TrafficProfileBestEffortAttributes bestEffort, BestEffortService trafficProfile) {
-		BEEnvelop authorizedEnvelop = trafficProfile.getAuthorizedEnvelop();
-		BeAuthorizedEnvelope beAuthorizedEnvelope = bestEffort.getBeAuthorizedEnvelope();
+	private void getBEAuthorizedEnvelop(final TrafficProfileBestEffortAttributes bestEffort,
+                                        final BestEffortService trafficProfile) {
+        final BEEnvelop authorizedEnvelop = trafficProfile.getAuthorizedEnvelop();
+        final BeAuthorizedEnvelope beAuthorizedEnvelope = bestEffort.getBeAuthorizedEnvelope();
 		if (beAuthorizedEnvelope.getTrafficPriority() != null)
 			authorizedEnvelop.setTrafficPriority(beAuthorizedEnvelope.getTrafficPriority().byteValue());
 		else
@@ -141,22 +144,23 @@ public class PCMMDataProcessor {
 			authorizedEnvelop.setMaximumSustainedTrafficRate(beAuthorizedEnvelope.getMaximumSustainedTrafficRate().intValue());
 	}
 
-	private void getTcpMatchRangesValues(TcpMatchRangesAttributes tcpRange, IExtendedClassifier classifier) {
+	private void getTcpMatchRangesValues(final TcpMatchRangesAttributes tcpRange,
+                                         final IExtendedClassifier classifier) {
 		short srcPortStart, srcPortEnd, dstPortStart, dstPortEnd;
 		srcPortStart = srcPortEnd = dstPortStart = dstPortEnd = 0;
 		if (tcpRange != null) {
 			classifier.setProtocol(IClassifier.Protocol.TCP);
-			TcpMatchRanges tcpMatchRanges = tcpRange.getTcpMatchRanges();
-			PortNumber tcpDestinationPortStart = tcpMatchRanges.getTcpDestinationPortStart();
+            final TcpMatchRanges tcpMatchRanges = tcpRange.getTcpMatchRanges();
+            final PortNumber tcpDestinationPortStart = tcpMatchRanges.getTcpDestinationPortStart();
 			if (tcpDestinationPortStart != null && tcpDestinationPortStart.getValue() != null)
 				dstPortStart = tcpDestinationPortStart.getValue().shortValue();
-			PortNumber tcpSourcePortStart = tcpMatchRanges.getTcpSourcePortStart();
+            final PortNumber tcpSourcePortStart = tcpMatchRanges.getTcpSourcePortStart();
 			if (tcpSourcePortStart != null && tcpSourcePortStart.getValue() != null)
 				srcPortStart = tcpSourcePortStart.getValue().shortValue();
-			PortNumber tcpDestinationPortEnd = tcpMatchRanges.getTcpDestinationPortEnd();
+            final PortNumber tcpDestinationPortEnd = tcpMatchRanges.getTcpDestinationPortEnd();
 			if (tcpDestinationPortEnd != null && tcpDestinationPortEnd.getValue() != null)
 				dstPortEnd = tcpDestinationPortEnd.getValue().shortValue();
-			PortNumber tcpSourcePortEnd = tcpMatchRanges.getTcpSourcePortEnd();
+            final PortNumber tcpSourcePortEnd = tcpMatchRanges.getTcpSourcePortEnd();
 			if (tcpSourcePortEnd != null && tcpSourcePortEnd.getValue() != null)
 				srcPortEnd = tcpSourcePortEnd.getValue().shortValue();
 		}
@@ -166,22 +170,22 @@ public class PCMMDataProcessor {
 		classifier.setSourcePortEnd(srcPortEnd);
 	}
 
-	private void getUdpMatchRangeValues(UdpMatchRangesAttributes updRange, IExtendedClassifier classifier) {
+	private void getUdpMatchRangeValues(final UdpMatchRangesAttributes updRange, final IExtendedClassifier classifier) {
 		short srcPortStart, srcPortEnd, dstPortStart, dstPortEnd;
 		srcPortStart = srcPortEnd = dstPortStart = dstPortEnd = 0;
 		if (updRange != null) {
 			classifier.setProtocol(IClassifier.Protocol.UDP);
-			UpdMatchRanges updMatchRanges = updRange.getUpdMatchRanges();
-			PortNumber udpDestinationPortStart = updMatchRanges.getUdpDestinationPortStart();
+            final UpdMatchRanges updMatchRanges = updRange.getUpdMatchRanges();
+            final PortNumber udpDestinationPortStart = updMatchRanges.getUdpDestinationPortStart();
 			if (udpDestinationPortStart != null && udpDestinationPortStart.getValue() != null)
 				dstPortStart = udpDestinationPortStart.getValue().shortValue();
-			PortNumber udpSourcePortStart = updMatchRanges.getUdpSourcePortStart();
+            final PortNumber udpSourcePortStart = updMatchRanges.getUdpSourcePortStart();
 			if (udpSourcePortStart != null && udpSourcePortStart.getValue() != null)
 				srcPortStart = udpSourcePortStart.getValue().shortValue();
-			PortNumber udpDestinationPortEnd = updMatchRanges.getUdpDestinationPortEnd();
+            final PortNumber udpDestinationPortEnd = updMatchRanges.getUdpDestinationPortEnd();
 			if (udpDestinationPortEnd != null && udpDestinationPortEnd.getValue() != null)
 				dstPortEnd = udpDestinationPortEnd.getValue().shortValue();
-			PortNumber udpSourcePortEnd = updMatchRanges.getUdpSourcePortEnd();
+            final PortNumber udpSourcePortEnd = updMatchRanges.getUdpSourcePortEnd();
 			if (udpSourcePortEnd != null && udpSourcePortEnd.getValue() != null)
 				srcPortEnd = udpSourcePortEnd.getValue().shortValue();
 		}

@@ -28,6 +28,11 @@ public class COPSPepId extends COPSObjBase {
         _objHdr.setCType((byte) 1);
     }
 
+    public COPSPepId(final COPSData data) {
+        this();
+        setData(data);
+    }
+
     protected COPSPepId(byte[] dataPtr) {
         _objHdr = new COPSObjHeader();
         _objHdr.parse(dataPtr);
@@ -45,7 +50,7 @@ public class COPSPepId extends COPSObjBase {
      * @param    data                a  COPSData
      *
      */
-    public void setData(COPSData data) {
+    public void setData(final COPSData data) {
         _data = data;
         if (_data.length() % 4 != 0) {
             int padLen = 4 - _data.length() % 4;
@@ -75,7 +80,7 @@ public class COPSPepId extends COPSObjBase {
      */
     public COPSData getData() {
         return _data;
-    };
+    }
 
     /**
      * Method isPepId
@@ -85,7 +90,7 @@ public class COPSPepId extends COPSObjBase {
      */
     public boolean isPepId() {
         return true;
-    };
+    }
 
     /**
      * Write data to given netwrok socket
@@ -95,7 +100,7 @@ public class COPSPepId extends COPSObjBase {
      * @throws   IOException
      *
      */
-    public void writeData(Socket id) throws IOException {
+    public void writeData(final Socket id) throws IOException {
         _objHdr.writeData(id);
         COPSUtil.writeData(id, _data.getData(), _data.length());
         if (_padding != null) {
@@ -111,9 +116,9 @@ public class COPSPepId extends COPSObjBase {
      * @throws   IOException
      *
      */
-    public void dump(OutputStream os) throws IOException {
+    public void dump(final OutputStream os) throws IOException {
         _objHdr.dump(os);
-        os.write(new String("PEPID: " + _data.str() + "\n").getBytes());
+        os.write(("PEPID: " + _data.str() + "\n").getBytes());
     }
 }
 

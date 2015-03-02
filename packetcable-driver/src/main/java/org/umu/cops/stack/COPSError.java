@@ -54,11 +54,11 @@ public class COPSError extends COPSObjBase {
         "Authentication required.",
     };
 
-    private COPSObjHeader _objHdr;
-    private short _errCode;
-    private short _errSubCode;
+    private final COPSObjHeader _objHdr;
+    private transient short _errCode;
+    private transient short _errSubCode;
 
-    public COPSError(short errCode, short subCode) {
+    public COPSError(final short errCode, final short subCode) {
         _objHdr = new COPSObjHeader();
         _errCode = errCode;
         _errSubCode = subCode;
@@ -67,7 +67,7 @@ public class COPSError extends COPSObjBase {
         _objHdr.setDataLength((short) 4);
     }
 
-    protected COPSError(byte[] dataPtr) {
+    protected COPSError(final byte[] dataPtr) {
         _objHdr = new COPSObjHeader();
         _objHdr.parse(dataPtr);
         // _objHdr.checkDataLength();
@@ -88,55 +88,31 @@ public class COPSError extends COPSObjBase {
     public short getErrSubCode() {
 		return _errSubCode;
 	}
-    /**
-     * Returns size in number of octects
-     *
-     * @return   a short
-     *
-     */
+
+    @Override
     public short getDataLength() {
         return (_objHdr.getDataLength());
-    };
-
-    /**
-     * Method getDescription
-     *
-     * @return   a String
-     *
-     */
-    public String getDescription() {
-        String errStr1;
-        String errStr2;
-
-        ///Get the details from the error code
-        errStr1 = G_errmsgArray[_errCode];
-        //TODO - define error sub-codes
-        errStr2 = "";
-        return (errStr1 + ":" + errStr2);
     }
 
     /**
-     * Method isError
-     *
-     * @return   a boolean
-     *
+     * Method getDescription
+     * @return   a String
      */
+    public String getDescription() {
+        //TODO - define error sub-codes
+        return (G_errmsgArray[_errCode] + ':');
+    }
+
+    @Override
     public boolean isError() {
         return true;
-    };
+    }
 
-    /**
-     * Writes object to given network socket in network byte order
-     *
-     * @param    id                  a  Socket
-     *
-     * @throws   IOException
-     *
-     */
-    public void writeData(Socket id) throws IOException {
+    @Override
+    public void writeData(final Socket id) throws IOException {
         _objHdr.writeData(id);
 
-        byte[] buf = new byte[4];
+        final byte[] buf = new byte[4];
 
         buf[0] = (byte) (_errCode >> 8);
         buf[1] = (byte) _errCode;
@@ -148,16 +124,13 @@ public class COPSError extends COPSObjBase {
 
     /**
      * Write an object textual description in the output stream
-     *
      * @param    os                  an OutputStream
-     *
      * @throws   IOException
-     *
      */
-    public void dump(OutputStream os) throws IOException {
+    public void dump(final OutputStream os) throws IOException {
         _objHdr.dump(os);
-        os.write(new String("Error Code: " + _errCode + "\n").getBytes());
-        os.write(new String("Error Sub Code: " + _errSubCode + "\n").getBytes());
+        os.write(("Error Code: " + _errCode + "\n").getBytes());
+        os.write(("Error Sub Code: " + _errSubCode + "\n").getBytes());
     }
 }
 

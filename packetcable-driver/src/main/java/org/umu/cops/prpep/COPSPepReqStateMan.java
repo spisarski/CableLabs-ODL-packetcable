@@ -6,19 +6,15 @@
 
 package org.umu.cops.prpep;
 
-import java.net.Socket;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.Vector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.umu.cops.COPSReqStateMan;
+import org.umu.cops.stack.*;
 
-import org.umu.cops.stack.COPSContext;
-import org.umu.cops.stack.COPSData;
-import org.umu.cops.stack.COPSDecision;
-import org.umu.cops.stack.COPSDecisionMsg;
-import org.umu.cops.stack.COPSError;
-import org.umu.cops.stack.COPSHandle;
-import org.umu.cops.stack.COPSPrObjBase;
-import org.umu.cops.stack.COPSSyncStateMsg;
+import java.net.Socket;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * COPSPepReqStateMan manages Request State using Client Handle (RFC 2748 pag. 21)
@@ -42,72 +38,14 @@ import org.umu.cops.stack.COPSSyncStateMsg;
  * @version COPSPepReqStateMan.java, v 2.00 2004
  *
  */
-public class COPSPepReqStateMan {
+public class COPSPepReqStateMan extends COPSReqStateMan {
 
-    /**
-     * Request State created
-     */
-    public final static short ST_CREATE = 1;
-    /**
-     * Request sent
-     */
-    public final static short ST_INIT = 2;
-    /**
-     * Decisions received
-     */
-    public final static short ST_DECS = 3;
-    /**
-     * Report sent
-     */
-    public final static short ST_REPORT = 4;
-    /**
-     * Request State finalized
-     */
-    public final static short ST_FINAL = 5;
-    /**
-     * New Request State solicited
-     */
-    public final static short ST_NEW = 6;
-    /**
-     * Delete Request State solicited
-     */
-    public final static short ST_DEL = 7;
-    /**
-     * SYNC Request received
-     */
-    public final static short ST_SYNC = 8;
-    /**
-     * SYNC Completed
-     */
-    public final static short ST_SYNCALL = 9;
-    /**
-     * Close Connection received
-     */
-    public final static short ST_CCONN = 10;
-    /**
-     * KAlive Time out
-     */
-    public final static short ST_NOKA = 11;
-    /**
-     * ACCT Time out
-     */
-    public final static short ST_ACCT = 12;
-
-    /**
-     * The client-type identifies the policy client
-     */
-    protected short _clientType;
-
-    /**
-     *  The client handle is used to uniquely identify a particular
-     *  PEP's request for a client-type
-     */
-    protected COPSHandle _handle;
+    private final static Logger logger = LoggerFactory.getLogger(COPSPepReqStateMan.class);
 
     /**
         The PolicyDataProcess is used to process policy data in the PEP
      */
-    protected COPSPepDataProcess _process;
+    protected final COPSPepDataProcess _process;
 
     /**
      *  State Request State
@@ -130,64 +68,11 @@ public class COPSPepReqStateMan {
      * @param    clientHandle                a Client Handle
      *
      */
-    public COPSPepReqStateMan(short clientType, String clientHandle) {
-        // COPS Handle
-        _handle = new COPSHandle();
-        COPSData id = new COPSData(clientHandle);
-        _handle.setId(id);
-        // client-type
-        _clientType = clientType;
-        _syncState = true;
-        _status = ST_CREATE;
-    }
-
-    /**
-     * Return client handle
-     *
-     * @return   a COPSHandle
-     *
-     */
-    public COPSHandle getClientHandle() {
-        return _handle;
-    }
-
-    /**
-     * Return client-type
-     *
-     * @return   a short
-     *
-     */
-    public short getClientType() {
-        return _clientType;
-    }
-
-    /**
-     * Return Request State status
-     *
-     * @return      s short
-     */
-    public short getStatus() {
-        return _status;
-    }
-
-    /**
-     * Return the Policy Data Process
-     *
-     * @return   a PolicyConfigure
-     *
-     */
-    public COPSPepDataProcess getDataProcess() {
-        return _process;
-    }
-
-    /**
-     * Establish the Policy Data Process
-     *
-     * @param    process              a  PolicyConfigure
-     *
-     */
-    public void setDataProcess(COPSPepDataProcess process) {
+    public COPSPepReqStateMan(final short clientType, final String clientHandle, final COPSPepDataProcess process) {
+        super(clientType, clientHandle, process);
         _process = process;
+        _syncState = true;
+        logger.info("Created new COPS PEP request state manager");
     }
 
     /**
@@ -196,14 +81,15 @@ public class COPSPepReqStateMan {
      * @throws   COPSPepException
      *
      */
-    protected void initRequestState(Socket sock)
-    throws COPSPepException {
+    @Override
+    public void initRequestState(final Socket sock) throws COPSException {
+        logger.info("Initializing request state");
         // Inits an object for sending COPS messages to the PDP
         _sender = new COPSPepMsgSender(_clientType, _handle, sock);
 
         // If an object for retrieving PEP features exists,
         // use it for retrieving them
-        Hashtable clientSIs;
+        final Map<String, String> clientSIs;
         if (_process != null)
             clientSIs = _process.getClientData(this);
         else
@@ -222,8 +108,7 @@ public class COPSPepReqStateMan {
      * @throws   COPSPepException
      *
      */
-    protected void finalizeRequestState()
-    throws COPSPepException {
+    protected void finalizeRequestState() throws COPSPepException {
         _sender.sendDeleteRequest();
         _status = ST_FINAL;
     }
@@ -236,31 +121,25 @@ public class COPSPepReqStateMan {
      * @throws   COPSPepException
      *
      */
-    protected void processDecision(COPSDecisionMsg dMsg)
-    throws COPSPepException {
-        // COPSDebug.out(getClass().getName(), "ClientId:" + getClientHandle().getId().str());
+    protected void processDecision(final COPSDecisionMsg dMsg) throws COPSPepException {
+        logger.info("ClientId:" + _handle.getId().str());
 
         // COPSHandle handle = dMsg.getClientHandle();
-        Hashtable decisions = dMsg.getDecisions();
+        final Map<COPSContext, List<COPSDecision>> decisions = dMsg.getDecisions();
 
-        Hashtable removeDecs = new Hashtable(40);
-        Hashtable installDecs = new Hashtable(40);
-        Hashtable errorDecs = new Hashtable(40);
-        for (Enumeration e = decisions.keys() ; e.hasMoreElements() ;) {
-
-            COPSContext context = (COPSContext) e.nextElement();
-            Vector v = (Vector) decisions.get(context);
-            Enumeration ee = v.elements();
-            COPSDecision cmddecision = (COPSDecision) ee.nextElement();
+        final Map<String, String> removeDecs = new HashMap<>();
+        final Map<String, String>  installDecs = new HashMap<>();
+        final Map<String, String>  errorDecs = new HashMap<>();
+        for (final List<COPSDecision> copsDecisions : decisions.values()) {
+            final COPSDecision cmddecision = copsDecisions.get(0);
 
             // cmddecision --> we must check whether it is an error!
-
+            // TODO - see if both blocks can be refactored as both are the same
             if (cmddecision.isInstallDecision()) {
-                String prid = new String();
-                for (; ee.hasMoreElements() ;) {
-                    COPSDecision decision = (COPSDecision) ee.nextElement();
-
-                    COPSPrObjBase obj = new COPSPrObjBase(decision.getData().getData());
+                String prid = "";
+                for (int i = 1; i < copsDecisions.size(); i++) {
+                    final COPSDecision decision = copsDecisions.get(i);
+                    final COPSPrObjBase obj = new COPSPrObjBase(decision.getData().getData());
                     switch (obj.getSNum()) {
                     case COPSPrObjBase.PR_PRID:
                         prid = obj.getData().str();
@@ -273,14 +152,11 @@ public class COPSPepReqStateMan {
                     }
                 }
             }
-
             if (cmddecision.isRemoveDecision()) {
-
-                String prid = new String();
-                for (; ee.hasMoreElements() ;) {
-                    COPSDecision decision = (COPSDecision) ee.nextElement();
-
-                    COPSPrObjBase obj = new COPSPrObjBase(decision.getData().getData());
+                String prid = "";
+                for (int i = 1; i < copsDecisions.size(); i++) {
+                    final COPSDecision decision = copsDecisions.get(i);
+                    final COPSPrObjBase obj = new COPSPrObjBase(decision.getData().getData());
                     switch (obj.getSNum()) {
                     case COPSPrObjBase.PR_PRID:
                         prid = obj.getData().str();
@@ -301,10 +177,10 @@ public class COPSPepReqStateMan {
 
 
         if (_process.isFailReport(this)) {
-            // COPSDebug.out(getClass().getName(),"Sending FAIL Report\n");
+            logger.info("Sending FAIL Report");
             _sender.sendFailReport(_process.getReportData(this));
         } else {
-            // COPSDebug.out(getClass().getName(),"Sending SUCCESS Report\n");
+            logger.info("Sending SUCCESS Report");
             _sender.sendSuccessReport(_process.getReportData(this));
         }
         _status = ST_REPORT;
@@ -322,12 +198,9 @@ public class COPSPepReqStateMan {
      * @throws   COPSPepException
      *
      */
-    protected void processOpenNewRequestState()
-    throws COPSPepException {
-
+    protected void processOpenNewRequestState() throws COPSPepException {
         if (_process != null)
             _process.newRequestState(this);
-
         _status = ST_NEW;
     }
 
@@ -337,13 +210,11 @@ public class COPSPepReqStateMan {
      * @param    dMsg                a  COPSDecisionMsg
      *
      * @throws   COPSPepException
-     *
+     * TODO - determine what to do with the COPSDecisionMsg parameter
      */
-    protected void processDeleteRequestState(COPSDecisionMsg dMsg)
-    throws COPSPepException {
+    protected void processDeleteRequestState(final COPSDecisionMsg dMsg) throws COPSPepException {
         if (_process != null)
             _process.closeRequestState(this);
-
         _status = ST_DEL;
     }
 
@@ -356,14 +227,13 @@ public class COPSPepReqStateMan {
      * @param    ssMsg               a  COPSSyncStateMsg
      *
      * @throws   COPSPepException
-     *
+     * TODO - determine what to do with the COPSSyncStateMsg
      */
-    protected void processSyncStateRequest(COPSSyncStateMsg ssMsg)
-    throws COPSPepException {
+    protected void processSyncStateRequest(final COPSSyncStateMsg ssMsg) throws COPSPepException {
         _syncState = false;
         // If an object for retrieving PEP features exists,
         // use it for retrieving them
-        Hashtable clientSIs;
+        final Map<String, String> clientSIs;
         if (_process != null)
             clientSIs = _process.getClientData(this);
         else
@@ -371,35 +241,17 @@ public class COPSPepReqStateMan {
 
         // Send request
         _sender.sendRequest(clientSIs);
-
         _status = ST_SYNC;
     }
 
-    protected void processClosedConnection(COPSError error)
-    throws COPSPepException {
-        if (_process != null)
-            _process.notifyClosedConnection(this, error);
-
-        _status = ST_CCONN;
-    }
-
-    protected void processNoKAConnection()
-    throws COPSPepException {
-        if (_process != null)
-            _process.notifyNoKAliveReceived(this);
-
-        _status = ST_NOKA;
-    }
-
-    protected void processAcctReport()
-    throws COPSPepException {
-
-        Hashtable report = new Hashtable();
+    protected void processAcctReport() throws COPSPepException {
+        final Map<String, String> report;
         if (_process != null)
             report = _process.getAcctData(this);
+        else
+            report = new HashMap<>();
 
         _sender.sendAcctReport(report);
-
         _status = ST_ACCT;
     }
 

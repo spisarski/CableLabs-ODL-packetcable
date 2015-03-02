@@ -6,42 +6,21 @@
 
 package org.umu.cops.prpdp;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.umu.cops.prpep.COPSMsgSender;
+import org.umu.cops.stack.*;
+
 import java.io.IOException;
 import java.net.Socket;
-import java.util.Enumeration;
-import java.util.Hashtable;
-
-import org.umu.cops.stack.COPSContext;
-import org.umu.cops.stack.COPSData;
-import org.umu.cops.stack.COPSDecision;
-import org.umu.cops.stack.COPSDecisionMsg;
-import org.umu.cops.stack.COPSException;
-import org.umu.cops.stack.COPSHandle;
-import org.umu.cops.stack.COPSHeader;
-import org.umu.cops.stack.COPSPrEPD;
-import org.umu.cops.stack.COPSPrID;
-import org.umu.cops.stack.COPSSyncStateMsg;
+import java.util.Map;
 
 /**
  * COPS message transceiver class for provisioning connections at the PDP side.
  */
-public class COPSPdpMsgSender {
+public class COPSPdpMsgSender extends COPSMsgSender {
 
-    /**
-     * Socket connected to PEP
-     */
-    protected Socket _sock;
-
-    /**
-     * COPS client-type that identifies the policy client
-     */
-    protected short _clientType;
-
-    /**
-     * COPS client handle used to uniquely identify a particular
-     * PEP's request for a client-type
-     */
-    protected COPSHandle _handle;
+    private final static Logger logger = LoggerFactory.getLogger(COPSPdpMsgSender.class);
 
     /**
      * Creates a COPSPepMsgSender
@@ -50,28 +29,9 @@ public class COPSPdpMsgSender {
      * @param clientHandle      Client handle
      * @param sock              Socket to the PEP
      */
-    public COPSPdpMsgSender (short clientType, COPSHandle clientHandle, Socket sock) {
-        // COPS Handle
-        _handle = clientHandle;
-        _clientType = clientType;
-
-        _sock = sock;
-    }
-
-    /**
-     * Gets the client handle
-     * @return   Client's <tt>COPSHandle</tt>
-     */
-    public COPSHandle getClientHandle() {
-        return _handle;
-    }
-
-    /**
-     * Gets the client-type
-     * @return   Client-type value
-     */
-    public short getClientType() {
-        return _clientType;
+    public COPSPdpMsgSender(final short clientType, final COPSHandle clientHandle, final Socket sock) {
+        super(clientType, clientHandle, sock);
+        logger.info("Created new COPS PDP message sender");
     }
 
     /**
@@ -80,8 +40,9 @@ public class COPSPdpMsgSender {
      * @param installDecs   Decisions to be installed
      * @throws COPSPdpException
      */
-    public void sendDecision(Hashtable removeDecs, Hashtable installDecs)
-    throws COPSPdpException {
+    public void sendDecision(final Map<String, String> removeDecs, final Map<String, String> installDecs)
+            throws COPSPdpException {
+        logger.info("Send decision");
         /* <Decision Message> ::= <Common Header: Flag SOLICITED>
          *                          <Client Handle>
          *                          *(<Decision>) | <Error>
@@ -102,43 +63,38 @@ public class COPSPdpMsgSender {
         */
 
         // Common Header with the same ClientType as the request
-        COPSHeader hdr = new COPSHeader (COPSHeader.COPS_OP_DEC, getClientType());
+        final COPSHeader hdr = new COPSHeader (COPSHeader.COPS_OP_DEC, getClientType());
         hdr.setFlag(COPSHeader.COPS_FLAG_SOLICITED);
 
         // Client Handle with the same clientHandle as the request
-        COPSHandle handle = new COPSHandle();
-        handle.setId(getClientHandle().getId());
-
-        COPSDecisionMsg decisionMsg = new COPSDecisionMsg();
+        final COPSHandle handle = new COPSHandle(getClientHandle().getId());
+        final COPSDecisionMsg decisionMsg = new COPSDecisionMsg();
         try {
             decisionMsg.add(hdr);
             decisionMsg.add(handle);
 
             // Decisions (no flags supplied)
             //  <Context>
-            COPSContext cntxt = new COPSContext(COPSContext.CONFIG, (short) 0);
+            final COPSContext cntxt = new COPSContext(COPSContext.CONFIG, (short) 0);
 
             // Remove Decisions
             //  <Decision: Flags>
             if (removeDecs.size() > 0) {
-                COPSDecision rdec1 = new COPSDecision();
+                final COPSDecision rdec1 = new COPSDecision();
                 rdec1.setCmdCode(COPSDecision.DEC_REMOVE);
 
                 decisionMsg.addDecision(rdec1, cntxt);
 
-                for (Enumeration e = removeDecs.keys() ; e.hasMoreElements() ;) {
-                    String strprid = (String) e.nextElement();
-                    String strepd = (String) removeDecs.get(strprid);
-
+                for (final Map.Entry<String, String> entry : removeDecs.entrySet()) {
                     //  <Named Decision Data: Provisioning> (PRID)
-                    COPSDecision dec2 = new COPSDecision(COPSDecision.DEC_NAMED);
-                    COPSPrID prid = new COPSPrID();
-                    prid.setData(new COPSData(strprid));
+                    final COPSDecision dec2 = new COPSDecision(COPSDecision.DEC_NAMED);
+                    final COPSPrID prid = new COPSPrID();
+                    prid.setData(new COPSData(entry.getKey()));
                     dec2.setData(new COPSData(prid.getDataRep(), 0, prid.getDataLength()));
                     //  <Named Decision Data: Provisioning> (EPD)
-                    COPSDecision dec3 = new COPSDecision(COPSDecision.DEC_NAMED);
-                    COPSPrEPD epd = new COPSPrEPD();
-                    epd.setData(new COPSData(strepd));
+                    final COPSDecision dec3 = new COPSDecision(COPSDecision.DEC_NAMED);
+                    final COPSPrEPD epd = new COPSPrEPD();
+                    epd.setData(new COPSData(entry.getValue()));
                     dec3.setData(new COPSData(epd.getDataRep(), 0, epd.getDataLength()));
 
                     decisionMsg.addDecision(dec2, cntxt);
@@ -149,24 +105,21 @@ public class COPSPdpMsgSender {
             // Install Decisions
             //  <Decision: Flags>
             if (installDecs.size() > 0) {
-                COPSDecision idec1 = new COPSDecision();
+                final COPSDecision idec1 = new COPSDecision();
                 idec1.setCmdCode(COPSDecision.DEC_INSTALL);
 
                 decisionMsg.addDecision(idec1, cntxt);
 
-                for (Enumeration e = installDecs.keys() ; e.hasMoreElements() ;) {
-                    String strprid = (String) e.nextElement();
-                    String strepd = (String) installDecs.get(strprid);
-
+                for (final Map.Entry<String, String> entry : installDecs.entrySet()) {
                     //  <Named Decision Data: Provisioning> (PRID)
-                    COPSDecision dec2 = new COPSDecision(COPSDecision.DEC_NAMED);
-                    COPSPrID prid = new COPSPrID();
-                    prid.setData(new COPSData(strprid));
+                    final COPSDecision dec2 = new COPSDecision(COPSDecision.DEC_NAMED);
+                    final COPSPrID prid = new COPSPrID();
+                    prid.setData(new COPSData(entry.getKey()));
                     dec2.setData(new COPSData(prid.getDataRep(), 0, prid.getDataLength()));
                     //  <Named Decision Data: Provisioning> (EPD)
-                    COPSDecision dec3 = new COPSDecision(COPSDecision.DEC_NAMED);
-                    COPSPrEPD epd = new COPSPrEPD();
-                    epd.setData(new COPSData(strepd));
+                    final COPSDecision dec3 = new COPSDecision(COPSDecision.DEC_NAMED);
+                    final COPSPrEPD epd = new COPSPrEPD();
+                    epd.setData(new COPSData(entry.getValue()));
                     dec3.setData(new COPSData(epd.getDataRep(), 0, epd.getDataLength()));
 
                     decisionMsg.addDecision(dec2, cntxt);
@@ -181,7 +134,7 @@ public class COPSPdpMsgSender {
                 decisionMsg.add(intr);
                 /**/
             }
-        } catch (COPSException e) {
+        } catch (final COPSException e) {
             throw new COPSPdpException("Error making Msg");
         }
 
@@ -200,8 +153,9 @@ public class COPSPdpMsgSender {
      * @param installDecs   Decisions to be installed
      * @throws COPSPdpException
      */
-    public void sendUnsolicitedDecision(Hashtable removeDecs, Hashtable installDecs)
-    throws COPSPdpException {
+    public void sendUnsolicitedDecision(final Map<String, String> removeDecs, final Map<String, String> installDecs)
+            throws COPSPdpException {
+        logger.info("Sending unsolicited decision");
         //** Example of an UNSOLICITED decision
         //**
 
@@ -225,41 +179,36 @@ public class COPSPdpMsgSender {
         */
 
         // Common Header with the same ClientType as the request
-        COPSHeader hdr = new COPSHeader (COPSHeader.COPS_OP_DEC, getClientType());
+        final COPSHeader hdr = new COPSHeader (COPSHeader.COPS_OP_DEC, getClientType());
 
         // Client Handle with the same clientHandle as the request
-        COPSHandle handle = new COPSHandle();
-        handle.setId(getClientHandle().getId());
-
-        COPSDecisionMsg decisionMsg = new COPSDecisionMsg();
+        final COPSHandle handle = new COPSHandle(getClientHandle().getId());
+        final COPSDecisionMsg decisionMsg = new COPSDecisionMsg();
         try {
             decisionMsg.add(hdr);
             decisionMsg.add(handle);
 
             // Decisions (no flags supplied)
             //  <Context>
-            COPSContext cntxt = new COPSContext(COPSContext.CONFIG, (short) 0);
+            final COPSContext cntxt = new COPSContext(COPSContext.CONFIG, (short) 0);
 
             // Remove Decisions
             //  <Decision: Flags>
-            COPSDecision rdec1 = new COPSDecision();
+            final COPSDecision rdec1 = new COPSDecision();
             rdec1.setCmdCode(COPSDecision.DEC_REMOVE);
 
             decisionMsg.addDecision(rdec1, cntxt);
 
-            for (Enumeration e = removeDecs.keys() ; e.hasMoreElements() ;) {
-                String strprid = (String) e.nextElement();
-                String strepd = (String) removeDecs.get(strprid);
-
+            for (final Map.Entry<String, String> entry : removeDecs.entrySet()) {
                 //  <Named Decision Data: Provisioning> (PRID)
-                COPSDecision dec2 = new COPSDecision(COPSDecision.DEC_NAMED);
-                COPSPrID prid = new COPSPrID();
-                prid.setData(new COPSData(strprid));
+                final COPSDecision dec2 = new COPSDecision(COPSDecision.DEC_NAMED);
+                final COPSPrID prid = new COPSPrID();
+                prid.setData(new COPSData(entry.getKey()));
                 dec2.setData(new COPSData(prid.getDataRep(), 0, prid.getDataLength()));
                 //  <Named Decision Data: Provisioning> (EPD)
-                COPSDecision dec3 = new COPSDecision(COPSDecision.DEC_NAMED);
-                COPSPrEPD epd = new COPSPrEPD();
-                epd.setData(new COPSData(strepd));
+                final COPSDecision dec3 = new COPSDecision(COPSDecision.DEC_NAMED);
+                final COPSPrEPD epd = new COPSPrEPD();
+                epd.setData(new COPSData(entry.getValue()));
                 dec3.setData(new COPSData(epd.getDataRep(), 0, epd.getDataLength()));
 
                 decisionMsg.addDecision(dec2, cntxt);
@@ -268,24 +217,21 @@ public class COPSPdpMsgSender {
 
             // Install Decisions
             //  <Decision: Flags>
-            COPSDecision idec1 = new COPSDecision();
+            final COPSDecision idec1 = new COPSDecision();
             idec1.setCmdCode(COPSDecision.DEC_INSTALL);
 
             decisionMsg.addDecision(idec1, cntxt);
 
-            for (Enumeration e = installDecs.keys() ; e.hasMoreElements() ;) {
-                String strprid = (String) e.nextElement();
-                String strepd = (String) installDecs.get(strprid);
-
+            for (final Map.Entry<String, String> entry : installDecs.entrySet()) {
                 //  <Named Decision Data: Provisioning> (PRID)
-                COPSDecision dec2 = new COPSDecision(COPSDecision.DEC_NAMED);
-                COPSPrID prid = new COPSPrID();
-                prid.setData(new COPSData(strprid));
+                final COPSDecision dec2 = new COPSDecision(COPSDecision.DEC_NAMED);
+                final COPSPrID prid = new COPSPrID();
+                prid.setData(new COPSData(entry.getKey()));
                 dec2.setData(new COPSData(prid.getDataRep(), 0, prid.getDataLength()));
                 //  <Named Decision Data: Provisioning> (EPD)
-                COPSDecision dec3 = new COPSDecision(COPSDecision.DEC_NAMED);
-                COPSPrEPD epd = new COPSPrEPD();
-                epd.setData(new COPSData(strepd));
+                final COPSDecision dec3 = new COPSDecision(COPSDecision.DEC_NAMED);
+                final COPSPrEPD epd = new COPSPrEPD();
+                epd.setData(new COPSData(entry.getValue()));
                 dec3.setData(new COPSData(epd.getDataRep(), 0, epd.getDataLength()));
 
                 decisionMsg.addDecision(dec2, cntxt);
@@ -304,7 +250,6 @@ public class COPSPdpMsgSender {
         }
 
         //** Send the decision
-        //**
         try {
             decisionMsg.writeData(_sock);
         } catch (IOException e) {
@@ -316,8 +261,8 @@ public class COPSPdpMsgSender {
      * Sends a message asking that the request state be deleted
      * @throws   COPSPdpException
      */
-    public void sendDeleteRequestState()
-    throws COPSPdpException {
+    public void sendDeleteRequestState() throws COPSPdpException {
+        logger.info("Sending delete request state");
         /* <Decision Message> ::= <Common Header: Flag UNSOLICITED>
          *                          <Client Handle>
          *                          *(<Decision>)
@@ -329,21 +274,19 @@ public class COPSPdpMsgSender {
         */
 
         // Common Header with the same ClientType as the request (default UNSOLICITED)
-        COPSHeader hdr = new COPSHeader (COPSHeader.COPS_OP_DEC, getClientType());
+        final COPSHeader hdr = new COPSHeader (COPSHeader.COPS_OP_DEC, getClientType());
 
         // Client Handle with the same clientHandle as the request
-        COPSHandle clienthandle = new COPSHandle();
-        clienthandle.setId(_handle.getId());
-
+        final COPSHandle clienthandle = new COPSHandle(_handle.getId());
         // Decisions
         //  <Context>
-        COPSContext cntxt = new COPSContext(COPSContext.CONFIG, (short) 0);
+        final COPSContext cntxt = new COPSContext(COPSContext.CONFIG, (short) 0);
         //  <Decision: Flags>
-        COPSDecision dec = new COPSDecision();
+        final COPSDecision dec = new COPSDecision();
         dec.setCmdCode(COPSDecision.DEC_REMOVE);
         dec.setFlags(COPSDecision.F_REQSTATE);
 
-        COPSDecisionMsg decisionMsg = new COPSDecisionMsg();
+        final COPSDecisionMsg decisionMsg = new COPSDecisionMsg();
         try {
             decisionMsg.add(hdr);
             decisionMsg.add(clienthandle);
@@ -363,8 +306,8 @@ public class COPSPdpMsgSender {
      * Sends a request asking that a new request state be created
      * @throws   COPSPdpException
      */
-    public void sendOpenNewRequestState()
-    throws COPSPdpException {
+    public void sendOpenNewRequestState() throws COPSPdpException {
+        logger.info("Sending open new request state");
         /* <Decision Message> ::= <Common Header: Flag UNSOLICITED>
          *                          <Client Handle>
          *                          *(<Decision>)
@@ -376,21 +319,20 @@ public class COPSPdpMsgSender {
         */
 
         // Common Header with the same ClientType as the request (default UNSOLICITED)
-        COPSHeader hdr = new COPSHeader (COPSHeader.COPS_OP_DEC, getClientType());
+        final COPSHeader hdr = new COPSHeader (COPSHeader.COPS_OP_DEC, getClientType());
 
         // Client Handle with the same clientHandle as the request
-        COPSHandle clienthandle = new COPSHandle();
-        clienthandle.setId(_handle.getId());
+        final COPSHandle clienthandle = new COPSHandle(_handle.getId());
 
         // Decisions
         //  <Context>
-        COPSContext cntxt = new COPSContext(COPSContext.CONFIG, (short) 0);
+        final COPSContext cntxt = new COPSContext(COPSContext.CONFIG, (short) 0);
         //  <Decision: Flags>
-        COPSDecision dec = new COPSDecision();
+        final COPSDecision dec = new COPSDecision();
         dec.setCmdCode(COPSDecision.DEC_INSTALL);
         dec.setFlags(COPSDecision.F_REQSTATE);
 
-        COPSDecisionMsg decisionMsg = new COPSDecisionMsg();
+        final COPSDecisionMsg decisionMsg = new COPSDecisionMsg();
         try {
             decisionMsg.add(hdr);
             decisionMsg.add(clienthandle);
@@ -410,21 +352,19 @@ public class COPSPdpMsgSender {
      * Sends a message asking for a COPS sync operation
      * @throws COPSPdpException
      */
-    public void sendSyncRequestState()
-    throws COPSPdpException {
+    public void sendSyncRequestState() throws COPSPdpException {
+        logger.info("Sending sync request state");
         /* <Synchronize State Request>  ::= <Common Header>
          *                                  [<Client Handle>]
          *                                  [<Integrity>]
          */
 
         // Common Header with the same ClientType as the request
-        COPSHeader hdr = new COPSHeader (COPSHeader.COPS_OP_SSQ, getClientType());
+        final COPSHeader hdr = new COPSHeader (COPSHeader.COPS_OP_SSQ, getClientType());
 
         // Client Handle with the same clientHandle as the request
-        COPSHandle clienthandle = new COPSHandle();
-        clienthandle.setId(_handle.getId());
-
-        COPSSyncStateMsg msg = new COPSSyncStateMsg();
+        final COPSHandle clienthandle = new COPSHandle(_handle.getId());
+        final COPSSyncStateMsg msg = new COPSSyncStateMsg();
         try {
             msg.add(hdr);
             msg.add(clienthandle);

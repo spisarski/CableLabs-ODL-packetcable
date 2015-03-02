@@ -1,41 +1,20 @@
 package org.umu.cops.ospep;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.umu.cops.prpep.COPSMsgSender;
+import org.umu.cops.stack.*;
+
 import java.io.IOException;
 import java.net.Socket;
-import java.util.Enumeration;
-import java.util.Vector;
-
-import org.umu.cops.stack.COPSClientSI;
-import org.umu.cops.stack.COPSContext;
-import org.umu.cops.stack.COPSDeleteMsg;
-import org.umu.cops.stack.COPSException;
-import org.umu.cops.stack.COPSHandle;
-import org.umu.cops.stack.COPSHeader;
-import org.umu.cops.stack.COPSReason;
-import org.umu.cops.stack.COPSReportMsg;
-import org.umu.cops.stack.COPSReportType;
-import org.umu.cops.stack.COPSReqMsg;
-import org.umu.cops.stack.COPSSyncStateMsg;
+import java.util.List;
 
 /**
  * COPS message transceiver class for outsourcing connections at the PEP side.
  */
-public class COPSPepOSMsgSender {
-    /**
-     * Socket connection to PDP
-     */
-    protected Socket _sock;
+public class COPSPepOSMsgSender extends COPSMsgSender {
 
-    /**
-     * COPS client-type that identifies the policy client
-     */
-    protected short _clientType;
-
-    /**
-     * COPS client handle used to uniquely identify a particular
-     * PEP's request for a client-type
-     */
-    protected COPSHandle _handle;
+    private static final Logger logger = LoggerFactory.getLogger(COPSPepOSMsgSender.class);
 
     /**
      * Creates a COPSPepMsgSender
@@ -44,28 +23,9 @@ public class COPSPepOSMsgSender {
      * @param clientHandle      Client handle
      * @param sock              Socket connected to the PDP
      */
-    public COPSPepOSMsgSender (short clientType, COPSHandle clientHandle, Socket sock) {
-        // COPS Handle
-        _handle = clientHandle;
-        _clientType = clientType;
-
-        _sock = sock;
-    }
-
-    /**
-     * Gets the client handle
-     * @return  Client's <tt>COPSHandle</tt>
-     */
-    public COPSHandle getClientHandle() {
-        return _handle;
-    }
-
-    /**
-     * Gets the client-type
-     * @return  Client-type value
-     */
-    public short getClientType() {
-        return _clientType;
+    public COPSPepOSMsgSender(final short clientType, final COPSHandle clientHandle, final Socket sock) {
+        super(clientType, clientHandle, sock);
+        logger.info("Creating new message sender");
     }
 
     /**
@@ -75,31 +35,28 @@ public class COPSPepOSMsgSender {
      * @param    clientSIs              Client data
      * @throws   COPSPepException
      */
-    public void sendRequest(Vector clientSIs) throws COPSPepException {
+    public void sendRequest(final List<COPSClientSI> clientSIs) throws COPSPepException {
+        logger.info("-Sending request");
         // Create COPS Message
-        COPSHeader hdr = new COPSHeader(COPSHeader.COPS_OP_REQ, _clientType);
-
-        COPSContext cntxt = new COPSContext(COPSContext.CONFIG , (short) 0);
-
-        COPSHandle handle = _handle;
-
-        COPSReqMsg msg = new COPSReqMsg();
+        final COPSHeader hdr = new COPSHeader(COPSHeader.COPS_OP_REQ, _clientType);
+        final COPSContext cntxt = new COPSContext(COPSContext.CONFIG , (short) 0);
+        final COPSReqMsg msg = new COPSReqMsg();
         try {
-            msg.add(hdr) ;
-            msg.add(handle) ;
-            msg.add(cntxt) ;
+            msg.add(hdr);
+            msg.add(_handle);
+            msg.add(cntxt);
 
-            Enumeration clientSIEnum = clientSIs.elements();
-            while (clientSIEnum.hasMoreElements())
-                msg.add( (COPSClientSI) clientSIEnum.nextElement());
-        } catch (COPSException e) {
+            for (final COPSClientSI clientSI : clientSIs) {
+                msg.add(clientSI);
+            }
+        } catch (final COPSException e) {
             throw new COPSPepException("Error making Request Msg, reason: " + e.getMessage());
         }
 
         // Send message
         try {
             msg.writeData(_sock);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new COPSPepException("Failed to send the request, reason: " + e.getMessage());
         }
     }
@@ -111,31 +68,9 @@ public class COPSPepOSMsgSender {
      * @param clientSIs Report data
      * @throws   COPSPepException
      */
-    public void sendFailReport(Vector clientSIs) throws COPSPepException {
-        COPSReportMsg msg = new COPSReportMsg();
-        // Report FAIL
-        try {
-            COPSHeader hdr = new COPSHeader(COPSHeader.COPS_OP_RPT, _clientType);
-            COPSHandle hnd = _handle;
-
-            COPSReportType report = new COPSReportType(COPSReportType.FAILURE);
-
-            msg.add(hdr);
-            msg.add(hnd);
-            msg.add(report);
-
-            Enumeration clientSIEnum = clientSIs.elements();
-            while (clientSIEnum.hasMoreElements())
-                msg.add( (COPSClientSI) clientSIEnum.nextElement());
-        } catch (COPSException ex) {
-            throw new COPSPepException("Error making Msg");
-        }
-
-        try {
-            msg.writeData(_sock);
-        } catch (IOException e) {
-            throw new COPSPepException("Failed to send the report, reason: " + e.getMessage());
-        }
+    public void sendFailReport(final List<COPSClientSI> clientSIs) throws COPSException {
+        logger.info("Sending fail report");
+        sendReport(COPSReportType.FAILURE, clientSIs);
     }
 
     /**
@@ -145,31 +80,9 @@ public class COPSPepOSMsgSender {
      * @param   clientSIs   Report data
      * @throws  COPSPepException
      */
-    public void sendSuccessReport(Vector clientSIs) throws COPSPepException {
-        COPSReportMsg msg = new COPSReportMsg();
-        // Report SUCESS
-        try {
-            COPSHeader hdr = new COPSHeader(COPSHeader.COPS_OP_RPT, _clientType);
-            COPSHandle hnd = _handle;
-
-            COPSReportType report = new COPSReportType(COPSReportType.SUCCESS);
-
-            msg.add(hdr);
-            msg.add(hnd);
-            msg.add(report);
-
-            Enumeration clientSIEnum = clientSIs.elements();
-            while (clientSIEnum.hasMoreElements())
-                msg.add( (COPSClientSI) clientSIEnum.nextElement());
-        } catch (COPSException ex) {
-            throw new COPSPepException("Error making Msg");
-        }
-
-        try {
-            msg.writeData(_sock);
-        } catch (IOException e) {
-            throw new COPSPepException("Failed to send the report, reason: " + e.getMessage());
-        }
+    public void sendSuccessReport(final List<COPSClientSI> clientSIs) throws COPSException {
+        logger.info("Sending success report");
+        sendReport(COPSReportType.SUCCESS, clientSIs);
     }
 
     /**
@@ -177,24 +90,24 @@ public class COPSPepOSMsgSender {
      * @param clientSIs Report data
      * @throws COPSPepException
      */
-    public void sendAcctReport(Vector clientSIs) throws COPSPepException {
-        COPSReportMsg msg = new COPSReportMsg();
-        // Report SUCCESS
-        try {
-            COPSHeader hdr = new COPSHeader(COPSHeader.COPS_OP_RPT, _clientType);
-            COPSHandle hnd = _handle;
+    public void sendAcctReport(final List<COPSClientSI> clientSIs) throws COPSException {
+        logger.info("Sending accounting report");
+        sendReport(COPSReportType.ACCT, clientSIs);
+    }
 
-            COPSReportType report = new COPSReportType(COPSReportType.ACCT);
+    private void sendReport(final short type, final List<COPSClientSI> clientSIs) throws COPSException {
+        final COPSReportMsg msg = new COPSReportMsg();
+        final COPSHeader hdr = new COPSHeader(COPSHeader.COPS_OP_RPT, _clientType);
+        final COPSHandle hnd = _handle;
 
-            msg.add(hdr);
-            msg.add(hnd);
-            msg.add(report);
+        final COPSReportType report = new COPSReportType(type);
 
-            Enumeration clientSIEnum = clientSIs.elements();
-            while (clientSIEnum.hasMoreElements())
-                msg.add( (COPSClientSI) clientSIEnum.nextElement());
-        } catch (COPSException ex) {
-            throw new COPSPepException("Error making Msg");
+        msg.add(hdr);
+        msg.add(hnd);
+        msg.add(report);
+
+        for (final COPSClientSI clientSI : clientSIs) {
+            msg.add(clientSI);
         }
 
         try {
@@ -210,13 +123,14 @@ public class COPSPepOSMsgSender {
      * @throws   COPSPepException
      */
     public void sendSyncComplete() throws COPSPepException {
+        logger.info("Sending sync complete");
         // Common Header with the same ClientType as the request
-        COPSHeader hdr = new COPSHeader (COPSHeader.COPS_OP_SSC, _clientType);
+        final COPSHeader hdr = new COPSHeader (COPSHeader.COPS_OP_SSC, _clientType);
 
         // Client Handle with the same clientHandle as the request
-        COPSHandle clienthandle = _handle;
+        final COPSHandle clienthandle = _handle;
 
-        COPSSyncStateMsg msg = new COPSSyncStateMsg();
+        final COPSSyncStateMsg msg = new COPSSyncStateMsg();
         try {
             msg.add(hdr);
             msg.add(clienthandle);
@@ -239,13 +153,14 @@ public class COPSPepOSMsgSender {
      * @throws   COPSPepException
      */
     public void sendDeleteRequest() throws COPSPepException {
-        COPSHeader hdr = new COPSHeader(COPSHeader.COPS_OP_DRQ, _clientType);
-        COPSHandle handle = _handle;
+        logger.info("Sending delete request");
+        final COPSHeader hdr = new COPSHeader(COPSHeader.COPS_OP_DRQ, _clientType);
+        final COPSHandle handle = _handle;
 
         // *** TODO: use real reason codes
-        COPSReason reason = new COPSReason((short) 234, (short) 345);
+        final COPSReason reason = new COPSReason((short) 234, (short) 345);
 
-        COPSDeleteMsg msg = new COPSDeleteMsg();
+        final COPSDeleteMsg msg = new COPSDeleteMsg();
         try {
             msg.add(hdr);
             msg.add(handle);

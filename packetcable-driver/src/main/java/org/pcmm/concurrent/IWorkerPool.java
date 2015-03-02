@@ -37,7 +37,7 @@ public interface IWorkerPool extends IAdapter<IWorker> {
 	/**
 	 * kills the worker with the specified pid
 	 * 
-	 * @param pid
+	 * @param pid - the process ID
 	 */
 	void sendKillSignal(int pid);
 

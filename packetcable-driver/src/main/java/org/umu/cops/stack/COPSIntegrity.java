@@ -18,8 +18,8 @@ import java.net.Socket;
  */
 public class COPSIntegrity extends COPSObjBase {
     private COPSObjHeader _objHdr;
-    private int _keyId;
-    private int _seqNum;
+    private final int _keyId;
+    private final int _seqNum;
     private COPSData _keyDigest;
     private COPSData _padding;
 
@@ -35,48 +35,29 @@ public class COPSIntegrity extends COPSObjBase {
         _objHdr = new COPSObjHeader();
         _objHdr.parse(dataPtr);
         // _objHdr.checkDataLength();
+        int tempKeyId = 0;
+        tempKeyId |= ((short) dataPtr[4]) << 24;
+        tempKeyId |= ((short) dataPtr[5]) << 16;
+        tempKeyId |= ((short) dataPtr[6]) << 8;
+        tempKeyId |= ((short) dataPtr[7]) & 0xFF;
+        _keyId = tempKeyId;
 
-        _keyId |= ((short) dataPtr[4]) << 24;
-        _keyId |= ((short) dataPtr[5]) << 16;
-        _keyId |= ((short) dataPtr[6]) << 8;
-        _keyId |= ((short) dataPtr[7]) & 0xFF;
-        _seqNum |= ((short) dataPtr[8]) << 24;
-        _seqNum |= ((short) dataPtr[9]) << 16;
-        _seqNum |= ((short) dataPtr[10]) << 8;
-        _seqNum |= ((short) dataPtr[11]) & 0xFF;
+        int tempSeqNum = 0;
+        tempSeqNum |= ((short) dataPtr[8]) << 24;
+        tempSeqNum |= ((short) dataPtr[9]) << 16;
+        tempSeqNum |= ((short) dataPtr[10]) << 8;
+        tempSeqNum |= ((short) dataPtr[11]) & 0xFF;
+        _seqNum = tempSeqNum;
 
-        int dLen = _objHdr.getDataLength() - 12;
-        COPSData d = new COPSData(dataPtr, 12, dLen);
-        setKeyDigest(d);
+        final int dLen = _objHdr.getDataLength() - 12;
+        setKeyDigest(new COPSData(dataPtr, 12, dLen));
     }
 
     /**
-     * Method setKeyId
-     *
-     * @param    keyId               an int
-     *
-     */
-    public void setKeyId(int keyId) {
-        _keyId = keyId;
-    };
-
-    /**
-     * Method setSeqNum
-     *
-     * @param    seqNum              an int
-     *
-     */
-    public void setSeqNum(int seqNum) {
-        _seqNum = seqNum;
-    };
-
-    /**
      * Method setKeyDigest
-     *
      * @param    keyDigest           a  COPSData
-     *
      */
-    public void setKeyDigest(COPSData keyDigest) {
+    public void setKeyDigest(final COPSData keyDigest) {
         _keyDigest = keyDigest;
         if (_keyDigest.length() % 4 != 0) {
             int padLen = 4 - _keyDigest.length() % 4;
@@ -89,69 +70,33 @@ public class COPSIntegrity extends COPSObjBase {
 
     /**
      * Returns size in number of octects, including header
-     *
      * @return   a short
-     *
      */
     public short getDataLength() {
         //Add the size of the header also
-        int lpadding = 0;
+        final int lpadding;
         if (_padding != null) lpadding = _padding.length();
+        else lpadding = 0;
         return ((short) (_objHdr.getDataLength() + lpadding));
     }
 
     /**
-     * Method getKeyId
-     *
-     * @return   an int
-     *
-     */
-    public int getKeyId() {
-        return _keyId;
-    };
-
-    /**
-     * Method getSeqNum
-     *
-     * @return   an int
-     *
-     */
-    public int getSeqNum() {
-        return _seqNum;
-    };
-
-    /**
-     * Method getKeyDigest
-     *
-     * @return   a COPSData
-     *
-     */
-    public COPSData getKeyDigest() {
-        return _keyDigest;
-    };
-
-    /**
      * Method isMessageIntegrity
-     *
      * @return   a boolean
-     *
      */
     public boolean isMessageIntegrity() {
         return true;
-    };
+    }
 
     /**
      * Write data on a given network socket
-     *
      * @param    id                  a  Socket
-     *
      * @throws   IOException
-     *
      */
-    public void writeData(Socket id) throws IOException {
+    public void writeData(final Socket id) throws IOException {
         _objHdr.writeData(id);
 
-        byte[] buf = new byte[8];
+        final byte[] buf = new byte[8];
         buf[0] = (byte) (_keyId >> 24);
         buf[1] = (byte) (_keyId >> 16);
         buf[2] = (byte) (_keyId >> 8);
@@ -170,17 +115,14 @@ public class COPSIntegrity extends COPSObjBase {
 
     /**
      * Write an object textual description in the output stream
-     *
      * @param    os                  an OutputStream
-     *
      * @throws   IOException
-     *
      */
-    public void dump(OutputStream os) throws IOException {
+    public void dump(final OutputStream os) throws IOException {
         _objHdr.dump(os);
-        os.write(new String("Key Id: " + _keyId + "\n").getBytes());
-        os.write(new String("Sequence: " + _seqNum + "\n").getBytes());
-        os.write(new String("Key digest: " + _keyDigest.str() + "\n").getBytes());
+        os.write(("Key Id: " + _keyId + "\n").getBytes());
+        os.write(("Sequence: " + _seqNum + "\n").getBytes());
+        os.write(("Key digest: " + _keyDigest.str() + "\n").getBytes());
     }
 }
 

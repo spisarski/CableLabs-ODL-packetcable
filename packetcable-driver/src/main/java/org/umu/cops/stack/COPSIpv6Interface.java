@@ -6,8 +6,6 @@
 
 package org.umu.cops.stack;
 
-import java.net.UnknownHostException;
-
 /**
  * COPS IPv6 Interface
  *
@@ -16,58 +14,20 @@ import java.net.UnknownHostException;
  */
 public abstract class COPSIpv6Interface extends COPSInterface {
 
-    /**
-     * Method isIpv6Address
-     *
-     * @return   a boolean
-     *
-     */
-    public boolean isIpv6Address() {
-        return true;
-    }
+    protected final COPSObjHeader _objHdr;
+    private final COPSIpv6Address _addr;
+    private final int _ifindex;
 
-    /**
-     * Method setIpAddress
-     *
-     * @param    hostName            a  String
-     *
-     * @throws   UnknownHostException
-     *
-     */
-    public void setIpAddress(String hostName) throws UnknownHostException {
-        _addr.setIpAddress(hostName);
-    }
-
-    /**
-     * Method getIpName
-     *
-     * @return   a String
-     *
-     * @throws   UnknownHostException
-     *
-     */
-    public String getIpName() throws UnknownHostException {
-        return (_addr.getIpName());
-    }
-
-    /**
-     * Returns size in number of octects, including header
-     *
-     * @return   a short
-     *
-     */
-    public short getDataLength() {
-        //Add the size of the header also
-        return (_objHdr.getDataLength());
-    }
-
-    protected COPSIpv6Interface() {
+    protected COPSIpv6Interface(final COPSIpv6Address addr) {
+        this._addr = addr;
         _objHdr = new COPSObjHeader();
         _objHdr.setCType((byte) 2);
         _objHdr.setDataLength((short) (_addr.getDataLength() + 4));
+        this._ifindex = 0;
     }
 
-    protected COPSIpv6Interface(byte[] dataPtr) {
+    protected COPSIpv6Interface(final COPSIpv6Address addr, byte[] dataPtr) {
+        this._addr = addr;
         _objHdr = new COPSObjHeader();
         _objHdr.parse(dataPtr);
         // _objHdr.checkDataLength();
@@ -77,17 +37,30 @@ public abstract class COPSIpv6Interface extends COPSInterface {
 
         _addr.parse(buf);
 
-        _ifindex |= ((int) dataPtr[20]) << 24;
-        _ifindex |= ((int) dataPtr[21]) << 16;
-        _ifindex |= ((int) dataPtr[22]) << 8;
-        _ifindex |= ((int) dataPtr[23]) & 0xFF;
+        int tmpIfIndex = 0;
+        tmpIfIndex |= ((int) dataPtr[20]) << 24;
+        tmpIfIndex |= ((int) dataPtr[21]) << 16;
+        tmpIfIndex |= ((int) dataPtr[22]) << 8;
+        tmpIfIndex |= ((int) dataPtr[23]) & 0xFF;
+        _ifindex = tmpIfIndex;
 
         _objHdr.setDataLength((short) (_addr.getDataLength() + 4));
     }
 
-    protected COPSObjHeader _objHdr;
-    private COPSIpv6Address _addr;
-    private int _ifindex;
+    @Override
+    public boolean isIpv6Address() {
+        return true;
+    }
+
+    /**
+     * Returns size in number of octects, including header
+     * @return   a short
+     */
+    public short getDataLength() {
+        //Add the size of the header also
+        return (_objHdr.getDataLength());
+    }
+
 }
 
 

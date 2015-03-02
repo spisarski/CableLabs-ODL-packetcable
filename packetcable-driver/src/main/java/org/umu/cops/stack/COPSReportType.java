@@ -40,43 +40,47 @@ public class COPSReportType extends COPSPrObjBase {
         "Accounting",
     };
 
-    private COPSObjHeader _objHdr;
-    private short _rType;
-    private short _reserved;
+    private final COPSObjHeader _objHdr;
+    private final short _rType;
+    private final short _reserved;
 
     public final static short SUCCESS = 1;
     public final static short FAILURE = 2;
     public final static short ACCT = 3;
 
-    public COPSReportType(short rType) {
+    public COPSReportType(final short rType) {
         _objHdr = new COPSObjHeader();
         _objHdr.setCNum(COPSObjHeader.COPS_RPT);
         _objHdr.setCType((byte) 1);
         _rType = rType;
         _objHdr.setDataLength((short) 4);
+        _reserved = (short)0;
     }
 
     /**
           Parse data and create COPSReportType object
      */
-    protected COPSReportType(byte[] dataPtr) {
+    protected COPSReportType(final byte[] dataPtr) {
         _objHdr = new COPSObjHeader();
         _objHdr.parse(dataPtr);
         // _objHdr.checkDataLength();
 
-        _rType |= ((short) dataPtr[4]) << 8;
-        _rType |= ((short) dataPtr[5]) & 0xFF;
-        _reserved |= ((short) dataPtr[6]) << 8;
-        _reserved |= ((short) dataPtr[7]) & 0xFF;
+        short tmpRType = (short)0;
+        tmpRType |= ((short) dataPtr[4]) << 8;
+        tmpRType |= ((short) dataPtr[5]) & 0xFF;
+        _rType = tmpRType;
+
+        short tmpReserved = (short)0;
+        tmpReserved |= ((short) dataPtr[6]) << 8;
+        tmpReserved |= ((short) dataPtr[7]) & 0xFF;
+        _reserved = tmpReserved;
 
         _objHdr.setDataLength((short) 4);
     }
 
     /**
      * Returns size in number of octects, including header
-     *
      * @return   a short
-     *
      */
     public short getDataLength() {
         //Add the size of the header also
@@ -85,53 +89,42 @@ public class COPSReportType extends COPSPrObjBase {
 
     /**
      * If it is Success, return true
-     *
      * @return   a boolean
-     *
      */
     public boolean isSuccess() {
         return (_rType == SUCCESS );
-    };
+    }
 
     /**
      * If it is Failure, return true
-     *
      * @return   a boolean
-     *
      */
     public boolean isFailure() {
         return (_rType == FAILURE);
-    };
+    }
 
     /**
      * If it is Accounting, return true
-     *
      * @return   a boolean
-     *
      */
     public boolean isAccounting() {
         return (_rType == ACCT);
-    };
+    }
 
     /**
      * Always return true
-     *
      * @return   a boolean
-     *
      */
     public boolean isReport() {
         return true;
-    };
+    }
 
     /**
      * Write data in network byte order on a given network socket
-     *
      * @param    id                  a  Socket
-     *
      * @throws   IOException
-     *
      */
-    public void writeData(Socket id) throws IOException {
+    public void writeData(final Socket id) throws IOException {
         _objHdr.writeData(id);
 
         byte[] buf = new byte[4];
@@ -146,15 +139,12 @@ public class COPSReportType extends COPSPrObjBase {
 
     /**
      * Write an object textual description in the output stream
-     *
      * @param    os                  an OutputStream
-     *
      * @throws   IOException
-     *
      */
-    public void dump(OutputStream os) throws IOException {
+    public void dump(final OutputStream os) throws IOException {
         _objHdr.dump(os);
-        os.write(new String("Report: " + msgMap[_rType] + "\n").getBytes());
+        os.write(("Report: " + msgMap[_rType] + "\n").getBytes());
     }
 }
 

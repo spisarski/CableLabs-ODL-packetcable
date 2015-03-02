@@ -6,10 +6,11 @@
 
 package org.umu.cops.stack;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.net.Socket;
-
-// import org.umu.cops.common.COPSDebug;
 
 /**
  * COPS Transceiver
@@ -19,43 +20,33 @@ import java.net.Socket;
  */
 public class COPSTransceiver {
 
+    private final static Logger logger = LoggerFactory.getLogger(COPSTransceiver.class);
+
     /**
      * Method sendMsg
-     *
      * @param    msg                 a  COPSMsg
      * @param    fd                  a  Socket
-     *
-     * @throws   IOException
-     * @throws   COPSException
-     *
+     * @throws   IOException, COPSException
      */
-    static public void sendMsg(COPSMsg msg, Socket fd) throws IOException, COPSException {
-        // COPSDebug.out("COPSTransceiver", "sendMsg ******************************** START" );
-
+    static public void sendMsg(final COPSMsg msg, final Socket fd) throws IOException, COPSException {
+        logger.info("sendMsg ******************************** START" );
         msg.checkSanity();
         msg.writeData(fd);
-
-        // COPSDebug.out("COPSTransceiver", "sendMsg ******************************** END" );
+        logger.info("sendMsg ******************************** END" );
     }
 
     /**
      * Method receiveMsg
-     *
      * @param    fd                  a  Socket
-     *
      * @return   a COPSMsg
-     *
      * @throws   IOException
      * @throws   COPSException
-     *
      */
-    static public COPSMsg receiveMsg (Socket fd)  throws IOException, COPSException {
-        int nread = 0;
-        byte[] hBuf = new byte[8];
+    static public COPSMsg receiveMsg(final Socket fd) throws IOException, COPSException {
+        final byte[] hBuf = new byte[8];
+        logger.info("receiveMsg ******************************** START");
 
-        // COPSDebug.out("COPSTransceiver", "receiveMsg ******************************** START" );
-
-        nread = COPSUtil.readData(fd, hBuf, 8);
+        int nread = COPSUtil.readData(fd, hBuf, 8);
 
         if (nread == 0) {
             throw new COPSException("Error reading connection");
@@ -65,27 +56,20 @@ public class COPSTransceiver {
             throw new COPSException("Bad COPS message");
         }
 
-        COPSHeader hdr = new COPSHeader(hBuf);
-        int dataLen = hdr.getMsgLength() - hdr.getHdrLength();
-        // COPSDebug.out("COPSTransceiver", "COPS Msg length :[" + dataLen + "]\n" );
-        byte[] buf = new byte[dataLen + 1];
-        nread = 0;
-
+        final COPSHeader hdr = new COPSHeader(hBuf);
+        final int dataLen = hdr.getMsgLength() - hdr.getHdrLength();
+        logger.info("COPS Msg length :[" + dataLen + "]");
+        final byte[] buf = new byte[dataLen + 1];
         nread = COPSUtil.readData(fd, buf, dataLen);
         buf[dataLen] = (byte) '\0';
-        // COPSDebug.out("COPSTransceiver", "Data read length:[" + nread + "]\n");
+        logger.info("Data read length:[" + nread + "]");
 
         if (nread != dataLen) {
             throw new COPSException("Bad COPS message");
         }
 
-        COPSMsgParser prser = new COPSMsgParser();
-        COPSMsg msg = prser.parse(hdr, buf);
-
-        // COPSDebug.out("COPSTransceiver", "Message received");
-
-        // COPSDebug.out("COPSTransceiver", "receiveMsg ******************************** END" );
-        return msg;
+        final COPSMsgParser prser = new COPSMsgParser();
+        return prser.parse(hdr, buf);
     }
 }
 
